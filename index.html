@@ -179,7 +179,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-
   <label class="fl">Grupo</label>
   <select class="fi" id="nn-g" style="display:none"></select>
   <div id="nn-g-label" class="fi" style="display:none;font-weight:600;background:#f0f7ff;border-color:var(--g);cursor:default"></div>
-  <label class="fl">Escuela / Liceo (opcional)</label><input class="fi" id="nn-esc" placeholder="Ej: Escuela 23" autocapitalize="words">
+
   <label class="fl">Telefono tutor (opcional)</label><input class="fi" id="nn-tel" type="tel" placeholder="+598...">
   <button class="bp" onclick="crearNino()">Guardar</button>
   <button class="bs" onclick="cm('m-nn')">Cancelar</button>
@@ -196,7 +196,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-
   <input type="hidden" id="edit-nid">
   <label class="fl">Nombre</label><input class="fi" id="edit-n" placeholder="Nombre" autocapitalize="words">
   <label class="fl">Apellido</label><input class="fi" id="edit-a" placeholder="Apellido" autocapitalize="words">
-  <label class="fl">Escuela / Liceo</label><input class="fi" id="edit-esc" placeholder="Ej: Escuela 23">
+
   <label class="fl">Telefono tutor</label><input class="fi" id="edit-tel" type="tel" placeholder="+598...">
   <label class="fl">Observaciones</label><input class="fi" id="edit-obs" placeholder="Notas adicionales">
   <button class="bp" onclick="saveEdit()">Guardar cambios</button>
@@ -435,6 +435,8 @@ window.showTab=function(id){
 };
 
 function renderTab(id) {
+  if(ME.rol==='admin'&&id==='hoy'){renderGrupos();return;}
+  if(ME.rol==='admin'&&id==='hoy'){renderGrupos();return;}
   var map={hoy:renderHoy,ninos:renderNinos,grupos:renderGrupos,deuda:renderDeuda,stats:renderStats};
   if(map[id])map[id]();
 }
@@ -604,7 +606,7 @@ window.kidD=function(nid) {
     +'<div style="font-size:13px;color:var(--t2)">'+(g?g.nombre:'-')+'</div></div>'
     +'<button class="pill pb" style="cursor:pointer;border:none" onclick="openEdit(\''+nid+'\')">&#9999; Editar</button>'
     +'</div>';
-  if(n.escuela) html+='<div class="info-row">&#127979; '+n.escuela+'</div>';
+
   if(n.telefono) html+='<div class="info-row">&#128222; '+n.telefono+'</div>';
   if(n.observaciones) html+='<div class="info-row">&#128221; '+n.observaciones+'</div>';
   html+='<div class="mg mg2" style="margin-bottom:14px">'
@@ -710,24 +712,6 @@ function renderStats() {
     +'<div class="mt"><div class="mv mv-a">'+prom+'</div><div class="ml">Prom por sabado</div></div>'
     +'<div class="mt"><div class="mv mv-r">$'+total+'</div><div class="ml">Deuda acumulada</div></div>'
     +'</div>';
-  var escuelas={};
-  mis.forEach(function(n){
-    var e=(n.escuela||'').trim()||'Sin registrar';
-    escuelas[e]=(escuelas[e]||0)+1;
-  });
-  var escList=Object.entries(escuelas).sort(function(a,b){return b[1]-a[1];});
-  if(escList.length>0&&!(escList.length===1&&escList[0][0]==='Sin registrar')){
-    html+='<div class="slb">Distribucion por escuela</div>';
-    escList.forEach(function(entry){
-      var esc=entry[0],cnt=entry[1];
-      var pct=Math.round(cnt/(mis.length||1)*100);
-      html+='<div class="card cb" style="margin-bottom:8px">'
-        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-        +'<div style="font-size:14px;font-weight:700">'+esc+'</div>'
-        +'<div style="font-size:14px;font-weight:800;color:var(--g)">'+cnt+' <span style="font-size:11px;color:var(--t2)">('+pct+'%)</span></div>'
-        +'</div><div class="gbar"><div class="gbf" style="width:'+pct+'%"></div></div></div>';
-    });
-  }
   html+='<div class="slb">Por sabado</div>';
   DB.sabados.forEach(function(s){
     var regs=DB.registros[s.id]||{};
@@ -803,7 +787,7 @@ window.crearNino=async function(){
   try {
     await addDoc(collection(db,'ninos'),{
       nombre:n,apellido:a,grupoId:gid,activo:true,
-      escuela:document.getElementById('nn-esc').value.trim(),
+
       telefono:document.getElementById('nn-tel').value.trim(),
       creadoEn:serverTimestamp()
     });
@@ -820,7 +804,7 @@ window.openEdit=function(nid){
   document.getElementById('edit-nid').value=nid;
   document.getElementById('edit-n').value=n.nombre||'';
   document.getElementById('edit-a').value=n.apellido||'';
-  document.getElementById('edit-esc').value=n.escuela||'';
+
   document.getElementById('edit-tel').value=n.telefono||'';
   document.getElementById('edit-obs').value=n.observaciones||'';
   cm('m-kid'); om('m-edit');
@@ -835,7 +819,7 @@ window.saveEdit=async function(){
   try {
     await updateDoc(doc(db,'ninos',nid),{
       nombre:n,apellido:a,
-      escuela:document.getElementById('edit-esc').value.trim(),
+
       telefono:document.getElementById('edit-tel').value.trim(),
       observaciones:document.getElementById('edit-obs').value.trim()
     });
