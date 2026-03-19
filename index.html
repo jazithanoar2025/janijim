@@ -410,10 +410,10 @@ function showApp() {
     document.getElementById('tbt').textContent=g?g.nombre:'Mi grupo';
     document.getElementById('tbs').textContent=ME.nombre||ME.email;
   }
-  renderNav(); showTab('hoy');
+  renderNav(); showTab(ME.rol==='admin'?'grupos':'hoy');
 }
 
-var TA=[{id:'hoy',ic:'&#128203;',lb:'Hoy'},{id:'ninos',ic:'&#128102;',lb:'Janijim'},
+var TA=[{id:'grupos',ic:'&#128101;',lb:'Grupos'},{id:'ninos',ic:'&#128102;',lb:'Janijim'},
   {id:'grupos',ic:'&#128101;',lb:'Grupos'},{id:'deuda',ic:'&#128176;',lb:'Deudas'},{id:'stats',ic:'&#128202;',lb:'Stats'}];
 var TR=[{id:'hoy',ic:'&#128203;',lb:'Mi lista'},{id:'ninos',ic:'&#128102;',lb:'Janijim'},
   {id:'deuda',ic:'&#128176;',lb:'Deudas'},{id:'stats',ic:'&#128202;',lb:'Estad.'}];
@@ -435,14 +435,13 @@ window.showTab=function(id){
 };
 
 function renderTab(id) {
-  if(ME.rol==='admin'&&id==='hoy'){renderGrupos();return;}
-  if(ME.rol==='admin'&&id==='hoy'){renderGrupos();return;}
   var map={hoy:renderHoy,ninos:renderNinos,grupos:renderGrupos,deuda:renderDeuda,stats:renderStats};
   if(map[id])map[id]();
 }
 
 // ── HOY ──
 function renderHoy() {
+  if(ME.rol==='admin'){renderGrupos();return;}
   var el=document.getElementById('s-hoy');
   if(!SAB){el.innerHTML='<div class="empty"><div class="eic">&#128197;</div><p>No hay sabados.<br>Toca + para crear el primero.</p></div>';return;}
   var sid=SAB.id;
@@ -468,6 +467,7 @@ function renderHoy() {
     +'<div class="mt"><div class="mv">'+pag+'</div><div class="ml">Pagaron</div></div>'
     +'</div>'
     +'<div class="slb">Lista'+(pend?' - '+pend+' sin guardar':'')+'</div>';
+    html+='<input class="fi" placeholder="Buscar..." oninput="filterHoy(this.value)" style="margin-bottom:8px;margin-top:0">';
   if(mis.length===0){
     html+='<div class="empty"><div class="eic">&#128102;</div><p>Sin janijim en este grupo.</p></div>';
   } else {
@@ -496,6 +496,14 @@ function renderHoy() {
 
 window.setV=function(nid,v){PEND[nid]=PEND[nid]||{};PEND[nid].vino=v;if(!v)PEND[nid].pago=false;renderHoy();};
 window.setP=function(nid,p){PEND[nid]=PEND[nid]||{};PEND[nid].pago=p;renderHoy();};
+window.filterHoy=function(q){
+  var cards=document.querySelectorAll('#s-hoy .acard');
+  cards.forEach(function(card){
+    var name=card.querySelector('.aname');
+    var txt=name?name.textContent.toLowerCase():'';
+    card.style.display=txt.includes(q.toLowerCase())?'':'none';
+  });
+};
 
 window.guardar=async function() {
   if(IS_SAVING)return;
