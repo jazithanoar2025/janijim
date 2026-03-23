@@ -151,6 +151,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-
     <div id="s-grupos" class="screen"></div>
     <div id="s-deuda"  class="screen"></div>
     <div id="s-stats"  class="screen"></div>
+    <div id="s-sabados" class="screen"></div>
   </div>
   <nav class="bnav" id="bnav"></nav>
 </div>
@@ -179,7 +180,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-
   <label class="fl">Grupo</label>
   <select class="fi" id="nn-g" style="display:none"></select>
   <div id="nn-g-label" class="fi" style="display:none;font-weight:600;background:#f0f7ff;border-color:var(--g);cursor:default"></div>
-
+  <label class="fl">Escuela / Liceo (opcional)</label><input class="fi" id="nn-esc" placeholder="Ej: Escuela 23" autocapitalize="words">
   <label class="fl">Telefono tutor (opcional)</label><input class="fi" id="nn-tel" type="tel" placeholder="+598...">
   <button class="bp" onclick="crearNino()">Guardar</button>
   <button class="bs" onclick="cm('m-nn')">Cancelar</button>
@@ -196,7 +197,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-
   <input type="hidden" id="edit-nid">
   <label class="fl">Nombre</label><input class="fi" id="edit-n" placeholder="Nombre" autocapitalize="words">
   <label class="fl">Apellido</label><input class="fi" id="edit-a" placeholder="Apellido" autocapitalize="words">
-
+  <label class="fl">Escuela / Liceo</label><input class="fi" id="edit-esc" placeholder="Ej: Escuela 23">
   <label class="fl">Telefono tutor</label><input class="fi" id="edit-tel" type="tel" placeholder="+598...">
   <label class="fl">Observaciones</label><input class="fi" id="edit-obs" placeholder="Notas adicionales">
   <button class="bp" onclick="saveEdit()">Guardar cambios</button>
@@ -413,8 +414,7 @@ function showApp() {
   renderNav(); showTab(ME.rol==='admin'?'grupos':'hoy');
 }
 
-var TA=[{id:'grupos',ic:'&#128101;',lb:'Grupos'},{id:'ninos',ic:'&#128102;',lb:'Janijim'},
-  {id:'grupos',ic:'&#128101;',lb:'Grupos'},{id:'deuda',ic:'&#128176;',lb:'Deudas'},{id:'stats',ic:'&#128202;',lb:'Stats'}];
+var TA=[{id:'grupos',ic:'&#128101;',lb:'Kvutzot'},{id:'deuda',ic:'&#128176;',lb:'Deudas'},{id:'sabados',ic:'&#128197;',lb:'Sabados'},{id:'ninos',ic:'&#128102;',lb:'Janijim'}];
 var TR=[{id:'hoy',ic:'&#128203;',lb:'Mi lista'},{id:'ninos',ic:'&#128102;',lb:'Janijim'},
   {id:'deuda',ic:'&#128176;',lb:'Deudas'},{id:'stats',ic:'&#128202;',lb:'Estad.'}];
 
@@ -435,7 +435,7 @@ window.showTab=function(id){
 };
 
 function renderTab(id) {
-  var map={hoy:renderHoy,ninos:renderNinos,grupos:renderGrupos,deuda:renderDeuda,stats:renderStats};
+  var map={hoy:renderHoy,ninos:renderNinos,grupos:renderGrupos,deuda:renderDeuda,stats:renderStats,sabados:renderSabados};
   if(map[id])map[id]();
 }
 
@@ -466,8 +466,8 @@ function renderHoy() {
     +'<div class="mt"><div class="mv mv-g">'+vin+'</div><div class="ml">Vinieron</div></div>'
     +'<div class="mt"><div class="mv">'+pag+'</div><div class="ml">Pagaron</div></div>'
     +'</div>'
-    +'<div class="slb">Lista'+(pend?' - '+pend+' sin guardar':'')+'</div>';
-    html+='<input class="fi" placeholder="Buscar..." oninput="filterHoy(this.value)" style="margin-bottom:8px;margin-top:0">';
+    +'<div class="slb">Lista'+(pend?' - '+pend+' sin guardar':'')+'</div>'
+    +'<input class="fi" id="hoy-buscar" placeholder="Buscar janijim..." oninput="filtrarHoy(this.value)" style="margin-bottom:6px">';
   if(mis.length===0){
     html+='<div class="empty"><div class="eic">&#128102;</div><p>Sin janijim en este grupo.</p></div>';
   } else {
@@ -496,15 +496,31 @@ function renderHoy() {
 
 window.setV=function(nid,v){PEND[nid]=PEND[nid]||{};PEND[nid].vino=v;if(!v)PEND[nid].pago=false;renderHoy();};
 window.setP=function(nid,p){PEND[nid]=PEND[nid]||{};PEND[nid].pago=p;renderHoy();};
-window.filterHoy=function(q){
-  var cards=document.querySelectorAll('#s-hoy .acard');
-  cards.forEach(function(card){
-    var name=card.querySelector('.aname');
-    var txt=name?name.textContent.toLowerCase():'';
-    card.style.display=txt.includes(q.toLowerCase())?'':'none';
+window.filtrarHoy=function(q){
+  var q2=q.toLowerCase();
+  document.querySelectorAll('#s-hoy .acard').forEach(function(card){
+    var nm=card.querySelector('.aname');
+    card.style.display=(nm&&nm.textContent.toLowerCase().includes(q2))||!q2?'':'none';
   });
 };
 
+window.confirmarEliminar=function(nid){
+  var n=DB.ninos.find(function(x){return x.id===nid;});if(!n)return;
+  if(confirm('Eliminar a '+n.nombre+' '+n.apellido+'? Esta accion no se puede deshacer.')){
+    eliminarNino(nid);
+  }
+};
+window.eliminarNino=async function(nid){
+  try{
+    cm('m-kid');
+    toast('Eliminando...',4000);
+    await updateDoc(doc(db,'ninos',nid),{activo:false});
+    DB.ninos=DB.ninos.filter(function(x){return x.id!==nid;});
+    toast('Janijim eliminado');
+    renderNinos();
+    if(ME.rol!=='admin')renderHoy();
+  }catch(e){toast('Error al eliminar');}
+};
 window.guardar=async function() {
   if(IS_SAVING)return;
   if(!Object.keys(PEND).length){toast('Sin cambios');return;}
@@ -613,8 +629,9 @@ window.kidD=function(nid) {
     +'<div style="flex:1"><div style="font-size:20px;font-weight:800">'+n.nombre+' '+n.apellido+'</div>'
     +'<div style="font-size:13px;color:var(--t2)">'+(g?g.nombre:'-')+'</div></div>'
     +'<button class="pill pb" style="cursor:pointer;border:none" onclick="openEdit(\''+nid+'\')">&#9999; Editar</button>'
+    +(ME.rol!=='admin'?'<button class="pill pr" style="cursor:pointer;border:none;margin-left:6px" onclick="confirmarEliminar(\''+nid+'\')">Eliminar</button>':'')
     +'</div>';
-
+  if(n.escuela) html+='<div class="info-row">&#127979; '+n.escuela+'</div>';
   if(n.telefono) html+='<div class="info-row">&#128222; '+n.telefono+'</div>';
   if(n.observaciones) html+='<div class="info-row">&#128221; '+n.observaciones+'</div>';
   html+='<div class="mg mg2" style="margin-bottom:14px">'
@@ -720,6 +737,24 @@ function renderStats() {
     +'<div class="mt"><div class="mv mv-a">'+prom+'</div><div class="ml">Prom por sabado</div></div>'
     +'<div class="mt"><div class="mv mv-r">$'+total+'</div><div class="ml">Deuda acumulada</div></div>'
     +'</div>';
+  var escuelas={};
+  mis.forEach(function(n){
+    var e=(n.escuela||'').trim()||'Sin registrar';
+    escuelas[e]=(escuelas[e]||0)+1;
+  });
+  var escList=Object.entries(escuelas).sort(function(a,b){return b[1]-a[1];});
+  if(escList.length>0&&!(escList.length===1&&escList[0][0]==='Sin registrar')){
+    html+='<div class="slb">Distribucion por escuela</div>';
+    escList.forEach(function(entry){
+      var esc=entry[0],cnt=entry[1];
+      var pct=Math.round(cnt/(mis.length||1)*100);
+      html+='<div class="card cb" style="margin-bottom:8px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+        +'<div style="font-size:14px;font-weight:700">'+esc+'</div>'
+        +'<div style="font-size:14px;font-weight:800;color:var(--g)">'+cnt+' <span style="font-size:11px;color:var(--t2)">('+pct+'%)</span></div>'
+        +'</div><div class="gbar"><div class="gbf" style="width:'+pct+'%"></div></div></div>';
+    });
+  }
   html+='<div class="slb">Por sabado</div>';
   DB.sabados.forEach(function(s){
     var regs=DB.registros[s.id]||{};
@@ -749,7 +784,7 @@ function renderStats() {
 
 // ── FAB & FORMS ──
 window.onFab=function(){
-  if(TAB==='hoy'){if(ME.rol==='admin')om('m-nsab');else toast('Solo el admin puede crear sabados');}
+  if(TAB==='hoy'||TAB==='sabados'){if(ME.rol==='admin')om('m-nsab');else toast('Solo el admin puede crear sabados');}
   else if(TAB==='ninos'){fillGS();om('m-nn');}
   else if(TAB==='deuda')window.showTab('ninos');
 };
@@ -795,7 +830,7 @@ window.crearNino=async function(){
   try {
     await addDoc(collection(db,'ninos'),{
       nombre:n,apellido:a,grupoId:gid,activo:true,
-
+      escuela:document.getElementById('nn-esc').value.trim(),
       telefono:document.getElementById('nn-tel').value.trim(),
       creadoEn:serverTimestamp()
     });
@@ -812,7 +847,7 @@ window.openEdit=function(nid){
   document.getElementById('edit-nid').value=nid;
   document.getElementById('edit-n').value=n.nombre||'';
   document.getElementById('edit-a').value=n.apellido||'';
-
+  document.getElementById('edit-esc').value=n.escuela||'';
   document.getElementById('edit-tel').value=n.telefono||'';
   document.getElementById('edit-obs').value=n.observaciones||'';
   cm('m-kid'); om('m-edit');
@@ -827,7 +862,7 @@ window.saveEdit=async function(){
   try {
     await updateDoc(doc(db,'ninos',nid),{
       nombre:n,apellido:a,
-
+      escuela:document.getElementById('edit-esc').value.trim(),
       telefono:document.getElementById('edit-tel').value.trim(),
       observaciones:document.getElementById('edit-obs').value.trim()
     });
@@ -841,6 +876,37 @@ window.saveEdit=async function(){
 window.om=om; window.cm=cm;
 window.reloadData=reloadData;
 window.openSM=window.openSM;
+
+// ── SABADOS (admin) ──
+function renderSabados(){
+  var html='<div class="slb">Sabados registrados</div>';
+  if(DB.sabados.length===0){
+    html+='<div class="empty"><div class="eic">&#128197;</div><p>No hay sabados aun.</p></div>';
+  }else{
+    html+='<div class="card">';
+    DB.sabados.forEach(function(s){
+      var regs=Object.values(REG[s.id]||{});
+      var vin=regs.filter(function(r){return r.vino;}).length;
+      var pag=regs.filter(function(r){return r.vino&&r.pago;}).length;
+      var pct=DB.ninos.length?Math.round(vin/DB.ninos.length*100):0;
+      var col=pct>=70?'var(--g)':pct>=40?'var(--a)':'var(--r)';
+      html+='<div class="cb" style="border-bottom:1px solid var(--bd)">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+        +'<div><div style="font-size:15px;font-weight:700">'+fmt(s.fecha)+'</div>'
+        +'<div style="font-size:12px;color:var(--t2)">$'+s.monto+(s.observacion?' - '+s.observacion:'')+'</div></div>'
+        +'<span class="pill pg">$'+s.monto+'</span></div>'
+        +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'
+        +'<span class="pill pb">'+vin+' vinieron</span>'
+        +'<span class="pill '+(pag===vin&&vin>0?'pg':'pa')+'">'+pag+' pagaron</span>'
+        +'<span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:var(--bg);color:'+col+'">'+pct+'%</span></div>'
+        +'<div class="gbar"><div class="gbf" style="width:'+pct+'%;background:'+col+'"></div></div>'
+        +'</div>';
+    });
+    html+='</div>';
+  }
+  html+='<button class="bp" style="margin-top:14px" onclick="om(\'m-nsab\')">+ Nuevo sabado</button>';
+  document.getElementById('s-sabados').innerHTML=html;
+}
 
 // ── INIT ──
 async function init() {
