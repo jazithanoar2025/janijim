@@ -884,7 +884,13 @@ window.eliminarNino=async function(nid){
 // -- SABADOS ADMIN --
 function renderSabados(){
   var deudaTotal=DB.ninos.reduce(function(s,n){return s+deudaT(n.id);},0);
-  var html='<div class="mg mg2">'    +'<div class="mt"><div class="mv">'+DB.sabados.length+'</div><div class="ml">Total sabados</div></div>'    +'<div class="mt"><div class="mv mv-r">$'+deudaTotal+'</div><div class="ml">Deuda total</div></div>'    +'</div>'    +'<button class="bp" style="margin-bottom:14px" onclick="om('m-nsab')">+ Nuevo sabado</button>'    +'<div class="slb">Historial de sabados</div>';
+  var html='';
+  html+='<div class="mg mg2">';
+  html+='<div class="mt"><div class="mv">'+DB.sabados.length+'</div><div class="ml">Total sabados</div></div>';
+  html+='<div class="mt"><div class="mv mv-r">$'+deudaTotal+'</div><div class="ml">Deuda total</div></div>';
+  html+='</div>';
+  html+='<button class="bp" style="margin-bottom:14px" onclick="om(\'m-nsab\')">+ Nuevo sabado</button>';
+  html+='<div class="slb">Historial de sabados</div>';
   if(DB.sabados.length===0){
     html+='<div class="empty"><div class="eic">&#128197;</div><p>No hay sabados aun.</p></div>';
   }else{
@@ -896,14 +902,24 @@ function renderSabados(){
       var tot=DB.ninos.length;
       var pct=tot?Math.round(vin/tot*100):0;
       var col=pct>=70?'var(--g)':pct>=40?'var(--a)':'var(--r)';
-      html+='<div class="cb" style="border-bottom:1px solid var(--bd)">'        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'        +'<div><div style="font-size:15px;font-weight:700">'+fmt(s.fecha)+'</div>'        +'<div style="font-size:12px;color:var(--t2)">$'+s.monto+(s.observacion?' - '+s.observacion:'')+'</div></div>'        +'<span class="pill pg">$'+s.monto+'</span></div>'        +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'        +'<span class="pill pb">'+vin+' vinieron</span>'        +'<span class="pill '+(pag===vin&&vin>0?'pg':'pa')+'">'+pag+' pagaron</span>'        +'<span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:var(--bg);color:'+col+'">'+pct+'%</span></div>'        +'<div class="gbar"><div class="gbf" style="width:'+pct+'%;background:'+col+'"></div></div>'        +'</div>';
+      html+='<div class="cb" style="border-bottom:1px solid var(--bd)">';
+      html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+      html+='<div><div style="font-size:15px;font-weight:700">'+fmt(s.fecha)+'</div>';
+      html+='<div style="font-size:12px;color:var(--t2)">$'+s.monto+(s.observacion?' - '+s.observacion:'')+'</div></div>';
+      html+='<span class="pill pg">$'+s.monto+'</span></div>';
+      html+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">';
+      html+='<span class="pill pb">'+vin+' vinieron</span>';
+      html+='<span class="pill '+(pag===vin&&vin>0?'pg':'pa')+'">'+pag+' pagaron</span>';
+      html+='<span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:var(--bg);color:'+col+'">'+pct+'%</span></div>';
+      html+='<div class="gbar"><div class="gbf" style="width:'+pct+'%;background:'+col+'"></div></div>';
+      html+='</div>';
     });
     html+='</div>';
   }
   document.getElementById('s-sabados').innerHTML=html;
 }
 
-// -- INIT --
+
 async function init() {
   var ldiv=document.createElement('div');
   ldiv.style.cssText='color:rgba(255,255,255,.75);margin-top:20px;font-size:14px;display:flex;align-items:center;gap:8px';
