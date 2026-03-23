@@ -228,11 +228,11 @@ const firebaseConfig = {
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
 
-// ── STATE ──
+// -- STATE --
 let ME = null, SAB = null, TAB = 'hoy', PEND = {}, IS_SAVING = false;
 let DB = { usuarios:[], grupos:[], ninos:[], sabados:[], registros:{} };
 
-// ── UTILS ──
+// -- UTILS --
 const AVC = ['av1','av2','av3','av4','av5'];
 function avc(id) {
   var s=0; var str=String(id||'');
@@ -268,7 +268,7 @@ document.querySelectorAll('.ov').forEach(function(o){
   o.addEventListener('click',function(e){if(e.target===o)o.classList.remove('open');});
 });
 
-// ── FIREBASE HELPERS ──
+// -- FIREBASE HELPERS --
 async function loadDB() {
   try {
     const [uSnap, gSnap, nSnap, sSnap] = await Promise.all([
@@ -359,7 +359,7 @@ async function reloadData() {
   toast('Datos actualizados');
 }
 
-// ── AUTH ──
+// -- AUTH --
 async function doLogin() {
   var email=(document.getElementById('lemail').value||'').trim().toLowerCase();
   var pass=(document.getElementById('lpass').value||'').trim();
@@ -394,7 +394,7 @@ function doLogout() {
 }
 window.doLogout=doLogout;
 
-// ── APP ──
+// -- APP --
 function showApp() {
   document.getElementById('auth').style.display='none';
   var app=document.getElementById('app');
@@ -440,7 +440,7 @@ function renderTab(id) {
   if(map[id])map[id]();
 }
 
-// ── HOY ──
+// -- HOY --
 function renderHoy() {
   if(ME.rol==='admin'){renderGrupos();return;}
   var el=document.getElementById('s-hoy');
@@ -565,7 +565,7 @@ window.selS=async function(id) {
   renderHoy();
 };
 
-// ── NINOS ──
+// -- NINOS --
 function renderNinos() {
   var mis=misN();
   var html='<input class="fi" placeholder="Buscar..." oninput="filterK(this.value)" style="margin-bottom:4px">'
@@ -643,7 +643,7 @@ window.kidD=function(nid) {
   om('m-kid');
 };
 
-// ── GRUPOS ──
+// -- GRUPOS --
 function renderGrupos() {
   if(ME.rol!=='admin'){document.getElementById('s-grupos').innerHTML='';return;}
   var totalDeuda=DB.ninos.reduce(function(s,n){return s+deudaT(n.id);},0);
@@ -678,7 +678,7 @@ function renderGrupos() {
   document.getElementById('s-grupos').innerHTML=html;
 }
 
-// ── DEUDA ──
+// -- DEUDA --
 function renderDeuda() {
   var mis=misN();
   var deudores=mis.map(function(n){return Object.assign({},n,{_d:deudaT(n.id)});})
@@ -708,7 +708,7 @@ function renderDeuda() {
   document.getElementById('s-deuda').innerHTML=html;
 }
 
-// ── STATS ──
+// -- STATS --
 function renderStats() {
   var mis=misN();
   var total=mis.reduce(function(s,n){return s+deudaT(n.id);},0);
@@ -767,7 +767,7 @@ function renderStats() {
   document.getElementById('s-stats').innerHTML=html;
 }
 
-// ── FAB & FORMS ──
+// -- FAB & FORMS --
 window.onFab=function(){
   if(TAB==='hoy'||TAB==='sabados'){if(ME.rol==='admin')om('m-nsab');else toast('Solo el admin puede crear sabados');}
   else if(TAB==='ninos'){fillGS();om('m-nn');}
@@ -862,7 +862,7 @@ window.om=om; window.cm=cm;
 window.reloadData=reloadData;
 window.openSM=window.openSM;
 
-// ── ELIMINAR JANIJIM ──
+// -- ELIMINAR JANIJIM --
 window.confirmarEliminar=function(nid){
   var n=DB.ninos.find(function(x){return x.id===nid;});if(!n)return;
   if(confirm('Eliminar a '+n.nombre+' '+n.apellido+'? Esta accion no se puede deshacer.')){
@@ -881,7 +881,7 @@ window.eliminarNino=async function(nid){
   }catch(e){console.error(e);toast('Error al eliminar');}
 };
 
-// ── SABADOS ADMIN ──
+// -- SABADOS ADMIN --
 function renderSabados(){
   var deudaTotal=DB.ninos.reduce(function(s,n){return s+deudaT(n.id);},0);
   var html='<div class="mg mg2">'    +'<div class="mt"><div class="mv">'+DB.sabados.length+'</div><div class="ml">Total sabados</div></div>'    +'<div class="mt"><div class="mv mv-r">$'+deudaTotal+'</div><div class="ml">Deuda total</div></div>'    +'</div>'    +'<button class="bp" style="margin-bottom:14px" onclick="om('m-nsab')">+ Nuevo sabado</button>'    +'<div class="slb">Historial de sabados</div>';
@@ -903,7 +903,7 @@ function renderSabados(){
   document.getElementById('s-sabados').innerHTML=html;
 }
 
-// ── INIT ──
+// -- INIT --
 async function init() {
   var ldiv=document.createElement('div');
   ldiv.style.cssText='color:rgba(255,255,255,.75);margin-top:20px;font-size:14px;display:flex;align-items:center;gap:8px';
