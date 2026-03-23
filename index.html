@@ -126,9 +126,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-
   <div class="a-card">
     <div class="a-err" id="aerr"></div>
     <label class="a-lbl">Usuario</label>
-    <input class="a-inp" id="lemail" type="text" placeholder="tu@email.com" autocomplete="email" autocapitalize="none" autocorrect="off">
+    <input class="a-inp" id="lemail" type="text" placeholder="tu@email.com" autocomplete="email" autocapitalize="none" autocorrect="off" onkeydown="if(event.key==='Enter')document.getElementById('lpass').focus()">
     <label class="a-lbl">Contrasena</label>
-    <input class="a-inp" id="lpass" type="password" placeholder="********">
+    <input class="a-inp" id="lpass" type="password" placeholder="********" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="a-btn" id="lbtn" onclick="doLogin()">Entrar</button>
   </div>
 </div>
