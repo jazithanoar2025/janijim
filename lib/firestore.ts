@@ -7,6 +7,9 @@ import {
   where,
   orderBy,
   setDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
 } from 'firebase/firestore'
 import { db } from './firebase'
 import type { Usuario, Grupo, Janij, Sabado, RegistroAsistencia, AppConfig, StatsHistorico } from './types'
@@ -73,4 +76,37 @@ export async function getHistorico(año: number): Promise<StatsHistorico | null>
 
 export async function saveHistorico(stats: StatsHistorico): Promise<void> {
   await setDoc(doc(db, 'historico', String(stats.año)), stats)
+}
+
+export async function addJanij(data: Omit<Janij, 'id'>): Promise<string> {
+  const ref = await addDoc(collection(db, 'janijim'), data)
+  return ref.id
+}
+
+export async function updateJanij(id: string, data: Partial<Omit<Janij, 'id'>>): Promise<void> {
+  await updateDoc(doc(db, 'janijim', id), data)
+}
+
+export async function deleteJanij(id: string): Promise<void> {
+  await deleteDoc(doc(db, 'janijim', id))
+}
+
+export async function addSabado(data: Omit<Sabado, 'id'>): Promise<string> {
+  const ref = await addDoc(collection(db, 'sabados'), data)
+  return ref.id
+}
+
+export async function deleteSabado(id: string): Promise<void> {
+  await deleteDoc(doc(db, 'sabados', id))
+}
+
+// Composite key sabadoId_janijId makes saves idempotent
+export async function batchSaveAsistencia(
+  registros: Omit<RegistroAsistencia, 'id'>[]
+): Promise<void> {
+  await Promise.all(
+    registros.map(r =>
+      setDoc(doc(db, 'asistencia', `${r.sabadoId}_${r.janijId}`), r)
+    )
+  )
 }
