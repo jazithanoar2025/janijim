@@ -7,7 +7,7 @@ export interface Alerta {
 }
 
 export function computeAlerts(
-  sabados: Sabado[],      // must be sorted desc by fecha (newest first)
+  sabados: Sabado[],
   janijim: Janij[],
   asistencia: RegistroAsistencia[]
 ): Alerta[] {
@@ -17,13 +17,17 @@ export function computeAlerts(
     asistioMap.set(`${r.sabadoId}_${r.janijId}`, r.asistio)
   }
 
+  // Sort internally to enforce expected order: newest first
+  const sortedSabados = [...sabados].sort((a, b) => b.fecha.localeCompare(a.fecha))
+
   const alerts: Alerta[] = []
 
   for (const janij of janijim) {
     let consecutive = 0
-    for (const sab of sabados) {
+    for (const sab of sortedSabados) {
       const attended = asistioMap.get(`${sab.id}_${janij.id}`)
-      if (attended === true) break
+      if (attended === undefined) break  // sábado not yet processed, stop counting
+      if (attended === true) break       // was present, stop counting
       consecutive++
     }
     if (consecutive >= 2) {
