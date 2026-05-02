@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { use, useCallback, useEffect, useState } from 'react'
 import { getJanijimByGrupo, addJanij, updateJanij, deleteJanij } from '@/lib/firestore'
 import type { Janij } from '@/lib/types'
 import { Button } from '@/components/ui/button'
@@ -28,14 +28,25 @@ export default function JanijimGrupoPage({ params }: Props) {
   const [editing, setEditing] = useState<Janij | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  async function load() {
-    const data = await getJanijimByGrupo(id)
-    setJanijim(data.sort((a, b) => a.apellido.localeCompare(b.apellido)))
-    setLoading(false)
-  }
+  const load = useCallback(async () => {
+    setError(null)
+    try {
+      const data = await getJanijimByGrupo(id)
+      setJanijim(data.sort((a, b) => a.apellido.localeCompare(b.apellido)))
+    } catch (err) {
+      console.error('Failed to load janijim:', err)
+      setError('No se pudieron cargar los janijim.')
+    } finally {
+      setLoading(false)
+    }
+  }, [id])
 
-  useEffect(() => { load() }, [id])
+  useEffect(() => {
+    setLoading(true)
+    load()
+  }, [load])
 
   function openAdd() {
     setEditing(null)
@@ -58,28 +69,41 @@ export default function JanijimGrupoPage({ params }: Props) {
   async function handleSave() {
     if (!form.nombre.trim() || !form.apellido.trim()) return
     setSaving(true)
-    const data: Omit<Janij, 'id'> = {
-      nombre: form.nombre.trim(),
-      apellido: form.apellido.trim(),
-      grupoId: id,
-      ...(form.escuela.trim() && { escuela: form.escuela.trim() }),
-      ...(form.telefono.trim() && { telefono: form.telefono.trim() }),
-      ...(form.observaciones.trim() && { observaciones: form.observaciones.trim() }),
+    setError(null)
+    try {
+      const data: Omit<Janij, 'id'> = {
+        nombre: form.nombre.trim(),
+        apellido: form.apellido.trim(),
+        grupoId: id,
+        ...(form.escuela.trim() && { escuela: form.escuela.trim() }),
+        ...(form.telefono.trim() && { telefono: form.telefono.trim() }),
+        ...(form.observaciones.trim() && { observaciones: form.observaciones.trim() }),
+      }
+      if (editing) {
+        await updateJanij(editing.id, data)
+      } else {
+        await addJanij(data)
+      }
+      await load()
+      setOpen(false)
+    } catch (err) {
+      console.error('Failed to save janij:', err)
+      setError('No se pudo guardar el janij.')
+    } finally {
+      setSaving(false)
     }
-    if (editing) {
-      await updateJanij(editing.id, data)
-    } else {
-      await addJanij(data)
-    }
-    await load()
-    setOpen(false)
-    setSaving(false)
   }
 
   async function handleDelete(j: Janij) {
     if (!confirm(`¿Eliminar a ${j.nombre} ${j.apellido}?`)) return
-    await deleteJanij(j.id)
-    await load()
+    setError(null)
+    try {
+      await deleteJanij(j.id)
+      await load()
+    } catch (err) {
+      console.error('Failed to delete janij:', err)
+      setError('No se pudo eliminar el janij.')
+    }
   }
 
   if (loading) return <p className="text-slate-500 text-sm p-4">Cargando...</p>
@@ -96,6 +120,7 @@ export default function JanijimGrupoPage({ params }: Props) {
       {janijim.length === 0 && (
         <p className="text-sm text-slate-400">No hay janijim en este grupo.</p>
       )}
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
       <div className="space-y-2">
         {janijim.map(j => (

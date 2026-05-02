@@ -13,6 +13,7 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const [añoActivo, setAñoActivo] = useState('')
   const [umbral, setUmbral] = useState('')
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     getAppConfig()
@@ -23,20 +24,41 @@ export default function SettingsPage() {
       })
       .catch(err => {
         console.error('Failed to load config:', err)
+        setError('No se pudo cargar la configuración.')
         setLoading(false)
       })
   }, [])
 
   async function handleSave() {
+    const parsedAño = Number(añoActivo)
+    const parsedUmbral = Number(umbral)
+    if (
+      !Number.isInteger(parsedAño) ||
+      parsedAño < 2000 ||
+      parsedAño > 2100 ||
+      !Number.isFinite(parsedUmbral) ||
+      parsedUmbral < 0 ||
+      parsedUmbral > 100
+    ) {
+      setError('Revisá el año y el umbral antes de guardar.')
+      return
+    }
     setSaving(true)
     setSaved(false)
-    await setAppConfig({
-      añoActivo: Number(añoActivo),
-      umbralFidelidadAlerta: Number(umbral),
-    })
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
+    setError(null)
+    try {
+      await setAppConfig({
+        añoActivo: parsedAño,
+        umbralFidelidadAlerta: parsedUmbral,
+      })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (err) {
+      console.error('Failed to save config:', err)
+      setError('No se pudo guardar la configuración.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (loading) return <p className="text-slate-500 text-sm">Cargando...</p>
@@ -76,6 +98,7 @@ export default function SettingsPage() {
           >
             {saving ? 'Guardando...' : saved ? '¡Guardado!' : 'Guardar cambios'}
           </Button>
+          {error && <p className="text-sm text-red-600">{error}</p>}
         </CardContent>
       </Card>
     </div>

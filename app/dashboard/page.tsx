@@ -36,11 +36,20 @@ export default function DashboardPage() {
             asistioMap.set(a.sabadoId, (asistioMap.get(a.sabadoId) ?? 0) + 1)
           }
         }
-        const last8 = sabados.slice(0, 8).reverse()
-        const chart: ChartPoint[] = last8.map(s => ({
-          fecha: s.fecha.slice(5),
-          asistentes: asistioMap.get(s.id) ?? 0,
-        }))
+        const attendanceByDate = new Map<string, number>()
+        for (const sabado of sabados) {
+          attendanceByDate.set(
+            sabado.fecha,
+            (attendanceByDate.get(sabado.fecha) ?? 0) + (asistioMap.get(sabado.id) ?? 0)
+          )
+        }
+        const chart: ChartPoint[] = Array.from(attendanceByDate.entries())
+          .slice(0, 8)
+          .reverse()
+          .map(([fecha, asistentes]) => ({
+            fecha: fecha.slice(5),
+            asistentes,
+          }))
         setStats({ janijim: janijim.length, grupos: grupos.length, sabados: sabados.length })
         setChartData(chart)
         setLoading(false)

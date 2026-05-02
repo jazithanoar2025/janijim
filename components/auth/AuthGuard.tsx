@@ -14,6 +14,11 @@ interface AuthGuardProps {
 export function AuthGuard({ children, requiredRole, grupoId }: AuthGuardProps) {
   const { usuario, loading } = useAuth()
   const router = useRouter()
+  const isWrongGroup =
+    requiredRole === 'admin' &&
+    Boolean(grupoId) &&
+    usuario?.rol === 'admin' &&
+    usuario.grupoId !== grupoId
 
   useEffect(() => {
     if (loading) return
@@ -26,16 +31,18 @@ export function AuthGuard({ children, requiredRole, grupoId }: AuthGuardProps) {
     if (usuario.rol !== requiredRole) {
       if (usuario.rol === 'superadmin') {
         router.replace('/dashboard')
-      } else {
+      } else if (usuario.grupoId) {
         router.replace(`/grupo/${usuario.grupoId}`)
+      } else {
+        router.replace('/login')
       }
       return
     }
 
-    if (requiredRole === 'admin' && grupoId && usuario.grupoId !== grupoId) {
+    if (isWrongGroup && usuario.grupoId) {
       router.replace(`/grupo/${usuario.grupoId}`)
     }
-  }, [usuario, loading, requiredRole, grupoId, router])
+  }, [usuario, loading, requiredRole, isWrongGroup, router])
 
   if (loading) {
     return (
@@ -45,7 +52,7 @@ export function AuthGuard({ children, requiredRole, grupoId }: AuthGuardProps) {
     )
   }
 
-  if (!usuario || usuario.rol !== requiredRole) return null
+  if (!usuario || usuario.rol !== requiredRole || isWrongGroup) return null
 
   return <>{children}</>
 }

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { signInWithEmailAndPassword } from 'firebase/auth'
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import { getUsuario } from '@/lib/firestore'
 import { Button } from '@/components/ui/button'
@@ -27,6 +27,7 @@ export default function LoginPage() {
       const usuario = await getUsuario(credential.user.uid)
 
       if (!usuario) {
+        await signOut(auth)
         setError('Usuario no encontrado en el sistema.')
         setLoading(false)
         return
@@ -37,6 +38,7 @@ export default function LoginPage() {
       } else if (usuario.rol === 'admin' && usuario.grupoId) {
         router.push(`/grupo/${usuario.grupoId}`)
       } else {
+        await signOut(auth)
         setError('Rol no configurado. Contactá al administrador.')
       }
     } catch {

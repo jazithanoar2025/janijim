@@ -41,27 +41,6 @@ export interface RegistroAsistencia {
   deuda: number
 }
 
-export interface StatsHistorico {
-  año: number
-  janijimTotal: number
-  janijimReales: number
-  janijimNuevos: number
-  janijimPerdidos: number
-  asistenciaPromedio: number
-  deudaTotal: number
-  porEscuela: Record<string, {
-    lista: number
-    reales: number
-    fidelidad: number
-  }>
-  sabados: Array<{
-    fecha: string
-    asistentes: number
-    pct: number
-    deuda: number
-  }>
-}
-
 export interface AppConfig {
   añoActivo: number
   umbralFidelidadAlerta: number

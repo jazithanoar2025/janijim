@@ -35,36 +35,49 @@ export default function SabadoDetailPage({ params }: Props) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    let cancelled = false
     async function load() {
-      const [sabados, jans, asistencia] = await Promise.all([
-        getSabadosByGrupo(grupoId),
-        getJanijimByGrupo(grupoId),
-        getAsistenciaBySabado(sabadoId),
-      ])
+      setLoading(true)
+      setError(null)
+      try {
+        const [sabados, jans, asistencia] = await Promise.all([
+          getSabadosByGrupo(grupoId),
+          getJanijimByGrupo(grupoId),
+          getAsistenciaBySabado(sabadoId),
+        ])
 
-      setSabado(sabados.find(s => s.id === sabadoId) ?? null)
+        if (cancelled) return
 
-      const sorted = jans.sort((a, b) => a.apellido.localeCompare(b.apellido))
-      setJanijim(sorted)
+        setSabado(sabados.find(s => s.id === sabadoId) ?? null)
 
-      const asistenciaMap: Record<string, RegistroAsistencia> = {}
-      asistencia.forEach(r => { asistenciaMap[r.janijId] = r })
+        const sorted = jans.sort((a, b) => a.apellido.localeCompare(b.apellido))
+        setJanijim(sorted)
 
-      const initialRows: Record<string, RowState> = {}
-      sorted.forEach(j => {
-        const existing = asistenciaMap[j.id]
-        initialRows[j.id] = {
-          asistio: existing?.asistio ?? false,
-          deuda: existing?.deuda != null ? String(existing.deuda) : '',
-        }
-      })
-      setRows(initialRows)
-      if (asistencia.length > 0) setSaved(true)
-      setLoading(false)
+        const asistenciaMap: Record<string, RegistroAsistencia> = {}
+        asistencia.forEach(r => { asistenciaMap[r.janijId] = r })
+
+        const initialRows: Record<string, RowState> = {}
+        sorted.forEach(j => {
+          const existing = asistenciaMap[j.id]
+          initialRows[j.id] = {
+            asistio: existing?.asistio ?? false,
+            deuda: existing?.deuda != null ? String(existing.deuda) : '',
+          }
+        })
+        setRows(initialRows)
+        setSaved(asistencia.length > 0)
+      } catch (err) {
+        console.error('Failed to load sabado:', err)
+        if (!cancelled) setError('No se pudo cargar la asistencia.')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }
     load()
+    return () => { cancelled = true }
   }, [grupoId, sabadoId])
 
   function toggleAsistio(janijId: string) {
@@ -79,28 +92,51 @@ export default function SabadoDetailPage({ params }: Props) {
 
   async function handleSave() {
     if (!sabado) return
+    const registros = janijim.map(j => {
+      const deuda = rows[j.id]?.deuda.trim() ? Number(rows[j.id]?.deuda) : 0
+      return {
+        janijId: j.id,
+        sabadoId,
+        grupoId,
+        asistio: rows[j.id]?.asistio ?? false,
+        deuda,
+      }
+    })
+    if (registros.some(r => !Number.isFinite(r.deuda) || r.deuda < 0)) {
+      setError('Las deudas deben ser números válidos mayores o iguales a 0.')
+      return
+    }
     setSaving(true)
-    const registros = janijim.map(j => ({
-      janijId: j.id,
-      sabadoId,
-      grupoId,
-      asistio: rows[j.id]?.asistio ?? false,
-      deuda: Number(rows[j.id]?.deuda ?? 0),
-    }))
-    await batchSaveAsistencia(registros)
-    setSaved(true)
-    setSaving(false)
+    setError(null)
+    try {
+      await batchSaveAsistencia(registros)
+      setSaved(true)
+    } catch (err) {
+      console.error('Failed to save attendance:', err)
+      setError('No se pudo guardar la asistencia.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function handleDelete() {
     if (!confirm('¿Eliminar este sábado? Se perderán los registros de asistencia.')) return
-    await deleteSabado(sabadoId)
-    router.push(`/grupo/${grupoId}`)
+    setError(null)
+    try {
+      await deleteSabado(sabadoId)
+      router.push(`/grupo/${grupoId}`)
+    } catch (err) {
+      console.error('Failed to delete sabado:', err)
+      setError('No se pudo eliminar el sábado.')
+    }
   }
 
   const asistentes = Object.values(rows).filter(r => r.asistio).length
   const pctAsistencia = janijim.length > 0 ? Math.round((asistentes / janijim.length) * 100) : 0
-  const totalDeuda = Object.values(rows).reduce((sum, r) => sum + Number(r.deuda || 0), 0)
+  const totalDeuda = Object.values(rows).reduce((sum, r) => {
+    const deuda = r.deuda.trim() ? Number(r.deuda) : 0
+    return Number.isFinite(deuda) ? sum + deuda : sum
+  }, 0)
 
   if (loading) return <p className="text-slate-500 text-sm p-4">Cargando...</p>
   if (!sabado) return <p className="text-red-500 text-sm p-4">Sábado no encontrado.</p>
@@ -125,6 +161,7 @@ export default function SabadoDetailPage({ params }: Props) {
           <Trash2 size={18} />
         </button>
       </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-2">

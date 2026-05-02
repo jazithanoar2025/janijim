@@ -1,0 +1,167 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userPath(uid) {
+      return /databases/$(database)/documents/usuarios/$(uid);
+    }
+
+    function hasProfile() {
+      return signedIn() && exists(userPath(request.auth.uid));
+    }
+
+    function profile() {
+      return get(userPath(request.auth.uid)).data;
+    }
+
+    function isSuperadmin() {
+      return hasProfile() && profile().rol == 'superadmin';
+    }
+
+    function isAdminFor(grupoId) {
+      return hasProfile() && profile().rol == 'admin' && profile().grupoId == grupoId;
+    }
+
+    function isNonEmptyString(value, maxLength) {
+      return value is string && value.size() > 0 && value.size() <= maxLength;
+    }
+
+    function isOptionalString(data, field, maxLength) {
+      return !(field in data) || (data[field] is string && data[field].size() <= maxLength);
+    }
+
+    function isNonNegativeNumber(value) {
+      return value is number && value >= 0 && value < 1000000;
+    }
+
+    function isIsoDate(value) {
+      return value is string && value.matches('^\\d{4}-\\d{2}-\\d{2}$');
+    }
+
+    function validUsuario(data) {
+      return data.keys().hasOnly(['email', 'nombre', 'rol', 'grupoId']) &&
+        isNonEmptyString(data.email, 254) &&
+        isNonEmptyString(data.nombre, 120) &&
+        data.rol in ['superadmin', 'admin'] &&
+        (
+          (data.rol == 'superadmin' && data.grupoId == null) ||
+          (data.rol == 'admin' && isNonEmptyString(data.grupoId, 128))
+        );
+    }
+
+    function validGrupo(data) {
+      return data.keys().hasOnly(['nombre', 'adminUid']) &&
+        isNonEmptyString(data.nombre, 120) &&
+        isOptionalString(data, 'adminUid', 128);
+    }
+
+    function validJanij(data) {
+      return data.keys().hasOnly(['nombre', 'apellido', 'grupoId', 'escuela', 'telefono', 'observaciones']) &&
+        isNonEmptyString(data.nombre, 80) &&
+        isNonEmptyString(data.apellido, 80) &&
+        isNonEmptyString(data.grupoId, 128) &&
+        isOptionalString(data, 'escuela', 120) &&
+        isOptionalString(data, 'telefono', 40) &&
+        isOptionalString(data, 'observaciones', 500);
+    }
+
+    function validSabado(data) {
+      return data.keys().hasOnly(['fecha', 'monto', 'observacion', 'grupoId']) &&
+        isIsoDate(data.fecha) &&
+        isNonNegativeNumber(data.monto) &&
+        isNonEmptyString(data.grupoId, 128) &&
+        isOptionalString(data, 'observacion', 500);
+    }
+
+    function validAsistencia(data) {
+      return data.keys().hasOnly(['janijId', 'sabadoId', 'grupoId', 'asistio', 'deuda']) &&
+        isNonEmptyString(data.janijId, 128) &&
+        isNonEmptyString(data.sabadoId, 128) &&
+        isNonEmptyString(data.grupoId, 128) &&
+        data.asistio is bool &&
+        isNonNegativeNumber(data.deuda);
+    }
+
+    function asistenciaRefsMatch(data) {
+      return exists(/databases/$(database)/documents/sabados/$(data.sabadoId)) &&
+        exists(/databases/$(database)/documents/janijim/$(data.janijId)) &&
+        get(/databases/$(database)/documents/sabados/$(data.sabadoId)).data.grupoId == data.grupoId &&
+        get(/databases/$(database)/documents/janijim/$(data.janijId)).data.grupoId == data.grupoId;
+    }
+
+    function validAppConfig(data) {
+      return data.keys().hasOnly(['añoActivo', 'umbralFidelidadAlerta']) &&
+        data['añoActivo'] is int &&
+        data['añoActivo'] >= 2000 &&
+        data['añoActivo'] <= 2100 &&
+        data.umbralFidelidadAlerta is number &&
+        data.umbralFidelidadAlerta >= 0 &&
+        data.umbralFidelidadAlerta <= 100;
+    }
+
+    match /usuarios/{uid} {
+      allow read: isSuperadmin() || (signedIn() && request.auth.uid == uid);
+      allow create, update: isSuperadmin() && validUsuario(request.resource.data);
+      allow delete: isSuperadmin();
+    }
+
+    match /grupos/{grupoId} {
+      allow read: hasProfile();
+      allow create, update: isSuperadmin() && validGrupo(request.resource.data);
+      allow delete: isSuperadmin();
+    }
+
+    match /janijim/{janijId} {
+      allow read: isSuperadmin() || isAdminFor(resource.data.grupoId);
+      allow create: validJanij(request.resource.data) &&
+        (isSuperadmin() || isAdminFor(request.resource.data.grupoId));
+      allow update: validJanij(request.resource.data) &&
+        request.resource.data.grupoId == resource.data.grupoId &&
+        (isSuperadmin() || isAdminFor(resource.data.grupoId));
+      allow delete: isSuperadmin() || isAdminFor(resource.data.grupoId);
+    }
+
+    match /sabados/{sabadoId} {
+      allow read: isSuperadmin() || isAdminFor(resource.data.grupoId);
+      allow create: validSabado(request.resource.data) &&
+        (isSuperadmin() || isAdminFor(request.resource.data.grupoId));
+      allow update: validSabado(request.resource.data) &&
+        request.resource.data.grupoId == resource.data.grupoId &&
+        (isSuperadmin() || isAdminFor(resource.data.grupoId));
+      allow delete: isSuperadmin() || isAdminFor(resource.data.grupoId);
+    }
+
+    match /asistencia/{asistenciaId} {
+      allow read: isSuperadmin() || isAdminFor(resource.data.grupoId);
+      allow create: validAsistencia(request.resource.data) &&
+        asistenciaId == request.resource.data.sabadoId + '_' + request.resource.data.janijId &&
+        asistenciaRefsMatch(request.resource.data) &&
+        (isSuperadmin() || isAdminFor(request.resource.data.grupoId));
+      allow update: validAsistencia(request.resource.data) &&
+        asistenciaId == request.resource.data.sabadoId + '_' + request.resource.data.janijId &&
+        request.resource.data.sabadoId == resource.data.sabadoId &&
+        request.resource.data.janijId == resource.data.janijId &&
+        request.resource.data.grupoId == resource.data.grupoId &&
+        asistenciaRefsMatch(request.resource.data) &&
+        (isSuperadmin() || isAdminFor(resource.data.grupoId));
+      allow delete: isSuperadmin() || isAdminFor(resource.data.grupoId);
+    }
+
+    match /config/{configId} {
+      allow read: hasProfile();
+      allow write: isSuperadmin() && configId == 'app' && validAppConfig(request.resource.data);
+    }
+
+    match /historico/{year} {
+      allow read, write: isSuperadmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

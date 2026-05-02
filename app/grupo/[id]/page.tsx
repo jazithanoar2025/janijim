@@ -34,31 +34,56 @@ export default function GrupoPage({ params }: Props) {
   const [monto, setMonto] = useState('')
   const [observacion, setObservacion] = useState('')
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([getSabadosByGrupo(id), getJanijimByGrupo(id)]).then(([sabs, jans]) => {
-      setSabados(sabs)
-      setJanijim(jans)
-      setLoading(false)
-    })
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    Promise.all([getSabadosByGrupo(id), getJanijimByGrupo(id)])
+      .then(([sabs, jans]) => {
+        if (cancelled) return
+        setSabados(sabs)
+        setJanijim(jans)
+      })
+      .catch(err => {
+        console.error('Failed to load group:', err)
+        if (!cancelled) setError('No se pudo cargar el grupo.')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => { cancelled = true }
   }, [id])
 
   async function handleCreate() {
     if (!fecha || !monto) return
+    const parsedMonto = Number(monto)
+    if (!Number.isFinite(parsedMonto) || parsedMonto < 0) {
+      setError('El monto debe ser un número válido mayor o igual a 0.')
+      return
+    }
     setSaving(true)
-    await addSabado({
-      fecha,
-      monto: Number(monto),
-      ...(observacion && { observacion }),
-      grupoId: id,
-    })
-    const updated = await getSabadosByGrupo(id)
-    setSabados(updated)
-    setFecha('')
-    setMonto('')
-    setObservacion('')
-    setOpen(false)
-    setSaving(false)
+    setError(null)
+    try {
+      await addSabado({
+        fecha,
+        monto: parsedMonto,
+        ...(observacion.trim() && { observacion: observacion.trim() }),
+        grupoId: id,
+      })
+      const updated = await getSabadosByGrupo(id)
+      setSabados(updated)
+      setFecha('')
+      setMonto('')
+      setObservacion('')
+      setOpen(false)
+    } catch (err) {
+      console.error('Failed to create sabado:', err)
+      setError('No se pudo crear el sábado.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (loading) return <p className="text-slate-500 text-sm p-4">Cargando...</p>
@@ -116,6 +141,7 @@ export default function GrupoPage({ params }: Props) {
           </DialogContent>
         </Dialog>
       </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
       {/* Stats row */}
       <div className="grid grid-cols-2 gap-3">

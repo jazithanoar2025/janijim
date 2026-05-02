@@ -1,34 +1,41 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { onAuthStateChanged, signOut, User } from 'firebase/auth'
+import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import { getUsuario } from '@/lib/firestore'
 import type { Usuario } from '@/lib/types'
 
 interface AuthState {
-  firebaseUser: User | null
   usuario: Usuario | null
   loading: boolean
 }
 
 export function useAuth(): AuthState & { logout: () => Promise<void> } {
   const [state, setState] = useState<AuthState>({
-    firebaseUser: null,
     usuario: null,
     loading: true,
   })
 
   useEffect(() => {
+    let active = true
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const usuario = await getUsuario(firebaseUser.uid)
-        setState({ firebaseUser, usuario, loading: false })
+        try {
+          const usuario = await getUsuario(firebaseUser.uid)
+          if (active) setState({ usuario, loading: false })
+        } catch (err) {
+          console.error('Failed to load authenticated user profile:', err)
+          if (active) setState({ usuario: null, loading: false })
+        }
       } else {
-        setState({ firebaseUser: null, usuario: null, loading: false })
+        setState({ usuario: null, loading: false })
       }
     })
-    return unsub
+    return () => {
+      active = false
+      unsub()
+    }
   }, [])
 
   const logout = async () => {

@@ -9,10 +9,11 @@ import {
   setDoc,
   addDoc,
   updateDoc,
-  deleteDoc,
+  writeBatch,
+  type DocumentReference,
 } from 'firebase/firestore'
 import { db } from './firebase'
-import type { Usuario, Grupo, Janij, Sabado, RegistroAsistencia, AppConfig, StatsHistorico } from './types'
+import type { Usuario, Grupo, Janij, Sabado, RegistroAsistencia, AppConfig } from './types'
 
 export async function getUsuario(uid: string): Promise<Usuario | null> {
   const snap = await getDoc(doc(db, 'usuarios', uid))
@@ -68,14 +69,13 @@ export async function setAppConfig(config: Partial<AppConfig>): Promise<void> {
   await setDoc(doc(db, 'config', 'app'), config, { merge: true })
 }
 
-export async function getHistorico(año: number): Promise<StatsHistorico | null> {
-  const snap = await getDoc(doc(db, 'historico', String(año)))
-  if (!snap.exists()) return null
-  return snap.data() as StatsHistorico
-}
-
-export async function saveHistorico(stats: StatsHistorico): Promise<void> {
-  await setDoc(doc(db, 'historico', String(stats.año)), stats)
+async function deleteRefs(refs: DocumentReference[]): Promise<void> {
+  const chunkSize = 450
+  for (let i = 0; i < refs.length; i += chunkSize) {
+    const batch = writeBatch(db)
+    refs.slice(i, i + chunkSize).forEach(ref => batch.delete(ref))
+    await batch.commit()
+  }
 }
 
 export async function addJanij(data: Omit<Janij, 'id'>): Promise<string> {
@@ -88,7 +88,8 @@ export async function updateJanij(id: string, data: Partial<Omit<Janij, 'id'>>):
 }
 
 export async function deleteJanij(id: string): Promise<void> {
-  await deleteDoc(doc(db, 'janijim', id))
+  const asistenciaSnap = await getDocs(query(collection(db, 'asistencia'), where('janijId', '==', id)))
+  await deleteRefs([...asistenciaSnap.docs.map(d => d.ref), doc(db, 'janijim', id)])
 }
 
 export async function addSabado(data: Omit<Sabado, 'id'>): Promise<string> {
@@ -97,7 +98,8 @@ export async function addSabado(data: Omit<Sabado, 'id'>): Promise<string> {
 }
 
 export async function deleteSabado(id: string): Promise<void> {
-  await deleteDoc(doc(db, 'sabados', id))
+  const asistenciaSnap = await getDocs(query(collection(db, 'asistencia'), where('sabadoId', '==', id)))
+  await deleteRefs([...asistenciaSnap.docs.map(d => d.ref), doc(db, 'sabados', id)])
 }
 
 // Composite key sabadoId_janijId makes saves idempotent
