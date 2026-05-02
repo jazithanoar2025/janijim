@@ -13,9 +13,13 @@ export default function AlertasPage({ params }: Props) {
   const { id } = use(params)
   const [alerts, setAlerts] = useState<Alerta[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
+    setLoading(true)
+    setAlerts([])
+    setError(null)
     Promise.all([
       getSabadosByGrupo(id),
       getJanijimByGrupo(id),
@@ -27,12 +31,17 @@ export default function AlertasPage({ params }: Props) {
       }
     }).catch(err => {
       console.error('Failed to load alerts:', err)
-      if (!cancelled) setLoading(false)
+      if (!cancelled) {
+        setError('No se pudieron cargar las alertas.')
+        setLoading(false)
+      }
     })
     return () => { cancelled = true }
   }, [id])
 
   if (loading) return <p className="text-slate-500 text-sm">Cargando...</p>
+
+  if (error) return <p className="text-red-500 text-sm">{error}</p>
 
   return (
     <div className="space-y-4">
@@ -48,7 +57,7 @@ export default function AlertasPage({ params }: Props) {
             key={janij.id}
             className="flex items-center gap-3 bg-white border rounded-lg p-3"
           >
-            <span className="text-xl">{severity === 'critical' ? '🔴' : '🟡'}</span>
+            <span className="text-xl" aria-hidden="true">{severity === 'critical' ? '🔴' : '🟡'}</span>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-slate-900 truncate">
                 {janij.nombre} {janij.apellido}
