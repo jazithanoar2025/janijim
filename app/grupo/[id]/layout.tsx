@@ -16,14 +16,20 @@ export default function AdminLayout({ children, params }: AdminLayoutProps) {
   const [alertCount, setAlertCount] = useState(0)
 
   useEffect(() => {
+    let cancelled = false
+    setAlertCount(0)
     Promise.all([
       getSabadosByGrupo(id),
       getJanijimByGrupo(id),
       getAsistenciaByGrupo(id),
     ]).then(([sabados, janijim, asistencia]) => {
-      const alerts = computeAlerts(sabados, janijim, asistencia)
-      setAlertCount(alerts.length)
+      if (!cancelled) {
+        setAlertCount(computeAlerts(sabados, janijim, asistencia).length)
+      }
+    }).catch(err => {
+      console.error('Failed to load alert data:', err)
     })
+    return () => { cancelled = true }
   }, [id])
 
   return (
