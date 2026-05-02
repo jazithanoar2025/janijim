@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth'
-import { auth } from '@/lib/firebase'
+import { getFirebaseAuth } from '@/lib/firebase'
 import { getUsuario } from '@/lib/firestore'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,6 +23,7 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
+      const auth = getFirebaseAuth()
       const credential = await signInWithEmailAndPassword(auth, email, password)
       const usuario = await getUsuario(credential.user.uid)
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
-import { auth } from '@/lib/firebase'
+import { getFirebaseAuth } from '@/lib/firebase'
 import { getUsuario } from '@/lib/firestore'
 import type { Usuario } from '@/lib/types'
 
@@ -19,6 +19,7 @@ export function useAuth(): AuthState & { logout: () => Promise<void> } {
 
   useEffect(() => {
     let active = true
+    const auth = getFirebaseAuth()
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
@@ -39,7 +40,7 @@ export function useAuth(): AuthState & { logout: () => Promise<void> } {
   }, [])
 
   const logout = async () => {
-    await signOut(auth)
+    await signOut(getFirebaseAuth())
   }
 
   return { ...state, logout }
