@@ -110,3 +110,14 @@ export async function batchSaveAsistencia(
     )
   )
 }
+
+export async function getAllSabados(): Promise<Sabado[]> {
+  const q = query(collection(db, 'sabados'), orderBy('fecha', 'desc'))
+  const snap = await getDocs(q)
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }) as Sabado)
+}
+
+export async function getAllAsistencia(): Promise<RegistroAsistencia[]> {
+  const snap = await getDocs(collection(db, 'asistencia'))
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }) as RegistroAsistencia)
+}
