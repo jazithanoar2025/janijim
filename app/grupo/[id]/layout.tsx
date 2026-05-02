@@ -1,8 +1,10 @@
 'use client'
 
-import { use } from 'react'
+import { use, useEffect, useState } from 'react'
 import { AuthGuard } from '@/components/auth/AuthGuard'
 import { AdminBottomNav } from '@/components/layout/AdminBottomNav'
+import { getSabadosByGrupo, getJanijimByGrupo, getAsistenciaByGrupo } from '@/lib/firestore'
+import { computeAlerts } from '@/lib/alerts'
 
 interface AdminLayoutProps {
   children: React.ReactNode
@@ -11,10 +13,22 @@ interface AdminLayoutProps {
 
 export default function AdminLayout({ children, params }: AdminLayoutProps) {
   const { id } = use(params)
+  const [alertCount, setAlertCount] = useState(0)
+
+  useEffect(() => {
+    Promise.all([
+      getSabadosByGrupo(id),
+      getJanijimByGrupo(id),
+      getAsistenciaByGrupo(id),
+    ]).then(([sabados, janijim, asistencia]) => {
+      const alerts = computeAlerts(sabados, janijim, asistencia)
+      setAlertCount(alerts.length)
+    })
+  }, [id])
 
   return (
     <AuthGuard requiredRole="admin" grupoId={id}>
-      <AdminBottomNav grupoId={id} />
+      <AdminBottomNav grupoId={id} alertCount={alertCount} />
       <main className="pt-14 pb-16 min-h-screen bg-slate-50">
         <div className="p-4">
           {children}
