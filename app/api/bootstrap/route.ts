@@ -1,6 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin'
 
+export async function GET() {
+  const diag: Record<string, unknown> = {
+    FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL ? '✅ set' : '❌ missing',
+    FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY
+      ? `✅ set (${process.env.FIREBASE_PRIVATE_KEY.length} chars)`
+      : '❌ missing',
+    BOOTSTRAP_SECRET: process.env.BOOTSTRAP_SECRET ? '✅ set' : '❌ missing',
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? '❌ missing',
+  }
+
+  try {
+    const auth = getAdminAuth()
+    await auth.listUsers(1)
+    diag.firebaseAuth = '✅ ok'
+  } catch (err) {
+    diag.firebaseAuth = `❌ ${String(err)}`
+  }
+
+  try {
+    const db = getAdminDb()
+    await db.doc('config/app').get()
+    diag.firestore = '✅ ok'
+  } catch (err) {
+    diag.firestore = `❌ ${String(err)}`
+  }
+
+  return NextResponse.json(diag)
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { secret, email, password, name } = await req.json() as {
