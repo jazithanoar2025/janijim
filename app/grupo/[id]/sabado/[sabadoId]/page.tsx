@@ -1,23 +1,21 @@
 'use client'
 
 import Link from 'next/link'
-import { use, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useParams } from 'next/navigation'
 import { ArrowLeft, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { PageFade } from '@/components/ui/page-fade'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { batchSaveRegistros, getAllSabados, getNinosByGrupo, getRegistrosBySabadoAndNinos } from '@/lib/firestore'
+import { isActiveNino } from '@/lib/metrics'
 import type { Nino, Registro, Sabado } from '@/lib/types'
-
-interface Props {
-  params: Promise<{ id: string; sabadoId: string }>
-}
 
 type RowState = Record<string, { vino: boolean; pago: boolean }>
 
-export default function SabadoPage({ params }: Props) {
-  const { id: grupoId, sabadoId } = use(params)
+export default function SabadoPage() {
+  const { id: grupoId, sabadoId } = useParams<{ id: string; sabadoId: string }>()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -33,7 +31,7 @@ export default function SabadoPage({ params }: Props) {
       .then(async ([sabados, ninosData]) => {
         if (cancelled) return
         const selected = sabados.find(s => s.id === sabadoId) ?? null
-        const activos = ninosData.filter(n => n.activo).sort((a, b) => a.apellido.localeCompare(b.apellido))
+        const activos = ninosData.filter(isActiveNino).sort((a, b) => a.apellido.localeCompare(b.apellido))
         const registros = await getRegistrosBySabadoAndNinos(sabadoId, activos.map(n => n.id))
         if (cancelled) return
         const byNino = new Map(registros.map((r: Registro) => [r.ninoId, r]))

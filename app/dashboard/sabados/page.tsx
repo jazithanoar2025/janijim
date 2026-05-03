@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { PageFade } from '@/components/ui/page-fade'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { addSabado, deleteSabado, getAllNinos, getAllRegistros, getAllSabados, getAppConfig } from '@/lib/firestore'
-import { countAttendanceForSabado, countPaidForSabado, filterSabadosByYear, getYears } from '@/lib/metrics'
+import { countAttendanceForSabado, countPaidForSabado, filterSabadosByYear, getYears, isActiveNino } from '@/lib/metrics'
 import type { Nino, Registro, Sabado } from '@/lib/types'
 
 export default function SabadosAdminPage() {
@@ -28,7 +28,7 @@ export default function SabadosAdminPage() {
   async function load() {
     const [sabadosData, ninosData, registrosData, config] = await Promise.all([getAllSabados(), getAllNinos(), getAllRegistros(), getAppConfig()])
     setSabados(sabadosData)
-    setNinos(ninosData.filter(n => n.activo))
+    setNinos(ninosData.filter(isActiveNino))
     setRegistros(registrosData)
     setYear(config.añoActivo)
   }

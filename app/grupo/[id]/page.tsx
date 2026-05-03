@@ -1,20 +1,17 @@
 'use client'
 
 import Link from 'next/link'
-import { use, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useParams } from 'next/navigation'
 import { CalendarDays, Percent, Users } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { PageFade } from '@/components/ui/page-fade'
 import { getAllSabados, getAppConfig, getNinosByGrupo, getRegistrosByNinos } from '@/lib/firestore'
-import { attendanceRate, countAttendanceForSabado, filterSabadosByYear, getYears } from '@/lib/metrics'
+import { attendanceRate, countAttendanceForSabado, filterSabadosByYear, getYears, isActiveNino } from '@/lib/metrics'
 import type { Nino, Registro, Sabado } from '@/lib/types'
 
-interface Props {
-  params: Promise<{ id: string }>
-}
-
-export default function GrupoHomePage({ params }: Props) {
-  const { id } = use(params)
+export default function GrupoHomePage() {
+  const { id } = useParams<{ id: string }>()
   const [loading, setLoading] = useState(true)
   const [sabados, setSabados] = useState<Sabado[]>([])
   const [ninos, setNinos] = useState<Nino[]>([])
@@ -42,7 +39,7 @@ export default function GrupoHomePage({ params }: Props) {
     return () => { cancelled = true }
   }, [id])
 
-  const activeNinos = useMemo(() => ninos.filter(n => n.activo), [ninos])
+  const activeNinos = useMemo(() => ninos.filter(isActiveNino), [ninos])
   const activeNinoIds = useMemo(() => new Set(activeNinos.map(n => n.id)), [activeNinos])
   const sabadosYear = useMemo(() => filterSabadosByYear(sabados, year), [sabados, year])
   const years = useMemo(() => getYears(sabados, year), [sabados, year])

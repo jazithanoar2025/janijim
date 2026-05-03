@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin'
 
 export async function GET() {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'No disponible.' }, { status: 404 })
+  }
+
   const diag: Record<string, unknown> = {
     FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL ? '✅ set' : '❌ missing',
     FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY
@@ -32,6 +36,10 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    if (process.env.NODE_ENV === 'production' && process.env.ENABLE_BOOTSTRAP !== 'true') {
+      return NextResponse.json({ error: 'No disponible.' }, { status: 404 })
+    }
+
     const { secret, email, password, name } = await req.json() as {
       secret: string
       email: string

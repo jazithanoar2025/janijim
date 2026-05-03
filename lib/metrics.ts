@@ -1,5 +1,9 @@
 import type { Nino, Registro, Sabado } from './types'
 
+export function isActiveNino(nino: Nino): boolean {
+  return nino.activo !== false
+}
+
 export function getYears(sabados: Sabado[], fallback = new Date().getFullYear()): number[] {
   const years = Array.from(new Set(sabados.map(s => Number(s.fecha.slice(0, 4))).filter(Number.isFinite)))
   if (!years.includes(fallback)) years.push(fallback)
@@ -27,7 +31,7 @@ export function countPaidForSabado(sabadoId: string, ninoIds: Set<string>, regis
 export function computeDebtRows(ninos: Nino[], sabados: Sabado[], registros: Registro[]) {
   const sabadoById = new Map(sabados.map(s => [s.id, s]))
   return ninos
-    .filter(n => n.activo)
+    .filter(isActiveNino)
     .map(nino => {
       const sabadosDebe = registros
         .filter(r => r.ninoId === nino.id && r.vino && !r.pago && sabadoById.has(r.sabadoId))

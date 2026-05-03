@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageFade } from '@/components/ui/page-fade'
+import { getFirebaseAuth } from '@/lib/firebase'
 import { getGrupos, getUsuarios } from '@/lib/firestore'
 import type { Grupo, Usuario } from '@/lib/types'
 
@@ -41,9 +42,11 @@ export default function UsuariosPage() {
     setSaving(true)
     setError('')
     try {
+      const token = await getFirebaseAuth().currentUser?.getIdToken()
+      if (!token) throw new Error('Sesión expirada. Volvé a iniciar sesión.')
       const res = await fetch('/api/usuarios', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(form),
       })
       const data = await res.json()

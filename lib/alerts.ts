@@ -1,4 +1,5 @@
 import type { Nino, Sabado, Registro } from './types'
+import { isActiveNino } from './metrics'
 
 export interface Alerta {
   nino: Nino
@@ -26,7 +27,7 @@ export function computeAlerts(
 
   const alerts: Alerta[] = []
   for (const nino of ninos) {
-    if (!nino.activo) continue
+    if (!isActiveNino(nino)) continue
     const asistencias = vinoMap.get(nino.id) ?? 0
     const fidelidad = Math.round((asistencias / sabadosAnio.length) * 100)
     if (fidelidad < umbral) {

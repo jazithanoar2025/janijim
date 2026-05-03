@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { PageFade } from '@/components/ui/page-fade'
 import { getAllNinos, getGrupos } from '@/lib/firestore'
+import { isActiveNino } from '@/lib/metrics'
 import type { Grupo, Nino } from '@/lib/types'
 
 interface Row {
@@ -20,7 +21,7 @@ export default function KvutzotPage() {
       .then(([grupos, ninos]) => {
         const countByGrupo = new Map<string, number>()
         for (const nino of ninos as Nino[]) {
-          if (nino.activo) countByGrupo.set(nino.grupoId, (countByGrupo.get(nino.grupoId) ?? 0) + 1)
+          if (isActiveNino(nino)) countByGrupo.set(nino.grupoId, (countByGrupo.get(nino.grupoId) ?? 0) + 1)
         }
         setRows(grupos.map(grupo => ({ grupo, janijimCount: countByGrupo.get(grupo.id) ?? 0 })))
       })

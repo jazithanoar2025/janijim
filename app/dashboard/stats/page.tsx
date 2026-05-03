@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { PageFade } from '@/components/ui/page-fade'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { getAllNinos, getAllRegistros, getAllSabados, getGrupos } from '@/lib/firestore'
-import { attendanceRate, filterSabadosByYear } from '@/lib/metrics'
+import { attendanceRate, filterSabadosByYear, isActiveNino } from '@/lib/metrics'
 import type { Grupo, Nino, Registro, Sabado } from '@/lib/types'
 
 export default function StatsPage() {
@@ -30,7 +30,7 @@ export default function StatsPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  const activeNinos = useMemo(() => ninos.filter(n => n.activo), [ninos])
+  const activeNinos = useMemo(() => ninos.filter(isActiveNino), [ninos])
   const yearOptions = Array.from({ length: currentYear - 2021 + 1 }, (_, i) => 2021 + i)
   const selectedYears = yearOptions.filter(y => y >= startYear && y <= endYear)
 

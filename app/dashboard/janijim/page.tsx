@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { PageFade } from '@/components/ui/page-fade'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { getAllNinos, getGrupos } from '@/lib/firestore'
+import { isActiveNino } from '@/lib/metrics'
 import type { Nino } from '@/lib/types'
 
 interface Row extends Nino {
@@ -28,7 +29,7 @@ export default function JanijimPage() {
 
   const filtered = useMemo(() => rows.filter(row => {
     const text = `${row.nombre} ${row.apellido} ${row.grupoNombre} ${row.escuela ?? ''}`.toLowerCase()
-    return text.includes(query.toLowerCase()) && (!onlyActive || row.activo)
+    return text.includes(query.toLowerCase()) && (!onlyActive || isActiveNino(row))
   }), [rows, query, onlyActive])
 
   if (loading) return <PageFade>{[0, 1, 2, 3].map(i => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse mb-2" />)}</PageFade>
@@ -55,7 +56,7 @@ export default function JanijimPage() {
                 <TableCell>{row.nombre} {row.apellido}</TableCell>
                 <TableCell>{row.grupoNombre}</TableCell>
                 <TableCell>{row.escuela ?? '-'}</TableCell>
-                <TableCell>{row.activo ? 'Activo' : 'Inactivo'}</TableCell>
+                <TableCell>{isActiveNino(row) ? 'Activo' : 'Inactivo'}</TableCell>
               </TableRow>
             ))}
           </TableBody>

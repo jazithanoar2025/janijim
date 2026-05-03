@@ -1,6 +1,7 @@
 'use client'
 
-import { use, useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
 import { Edit2, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -9,16 +10,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageFade } from '@/components/ui/page-fade'
 import { addNino, deleteNino, getNinosByGrupo, updateNino } from '@/lib/firestore'
+import { isActiveNino } from '@/lib/metrics'
 import type { Nino } from '@/lib/types'
-
-interface Props {
-  params: Promise<{ id: string }>
-}
 
 const emptyForm = { nombre: '', apellido: '', escuela: '', telefono: '', observaciones: '' }
 
-export default function GestionPage({ params }: Props) {
-  const { id } = use(params)
+export default function GestionPage() {
+  const { id } = useParams<{ id: string }>()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -91,7 +89,7 @@ export default function GestionPage({ params }: Props) {
   }
 
   async function toggleActivo(nino: Nino) {
-    await updateNino(nino.id, { activo: !nino.activo })
+    await updateNino(nino.id, { activo: !isActiveNino(nino) })
     await load()
   }
 
@@ -145,15 +143,15 @@ export default function GestionPage({ params }: Props) {
         {error && <p className="text-sm text-red-600">{error}</p>}
         <div className="space-y-2">
           {ninos.map(nino => (
-            <Card key={nino.id} className={`transition-colors duration-100 hover:bg-slate-50 ${!nino.activo ? 'opacity-60' : ''}`}>
+            <Card key={nino.id} className={`transition-colors duration-100 hover:bg-slate-50 ${!isActiveNino(nino) ? 'opacity-60' : ''}`}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="font-semibold text-slate-900">{nino.apellido}, {nino.nombre}</p>
-                    <p className="text-xs text-slate-500">{nino.activo ? 'Activo' : 'Inactivo'}{nino.escuela ? ` · ${nino.escuela}` : ''}</p>
+                    <p className="text-xs text-slate-500">{isActiveNino(nino) ? 'Activo' : 'Inactivo'}{nino.escuela ? ` · ${nino.escuela}` : ''}</p>
                   </div>
                   <div className="flex gap-1">
-                    <Button size="sm" variant="outline" onClick={() => toggleActivo(nino)} className="transition-colors duration-150">{nino.activo ? 'Ocultar' : 'Activar'}</Button>
+                    <Button size="sm" variant="outline" onClick={() => toggleActivo(nino)} className="transition-colors duration-150">{isActiveNino(nino) ? 'Ocultar' : 'Activar'}</Button>
                     <Button size="icon-sm" variant="ghost" onClick={() => openEdit(nino)} className="transition-colors duration-150"><Edit2 size={14} /></Button>
                     <Button size="icon-sm" variant="destructive" onClick={() => handleDelete(nino)} className="transition-colors duration-150"><Trash2 size={14} /></Button>
                   </div>

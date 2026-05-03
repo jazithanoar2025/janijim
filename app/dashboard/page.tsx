@@ -6,7 +6,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { Card, CardContent } from '@/components/ui/card'
 import { PageFade } from '@/components/ui/page-fade'
 import { getAllNinos, getAllRegistros, getAllSabados, getAppConfig, getGrupos } from '@/lib/firestore'
-import { attendanceRate, countAttendanceForSabado, filterSabadosByYear } from '@/lib/metrics'
+import { attendanceRate, countAttendanceForSabado, filterSabadosByYear, isActiveNino } from '@/lib/metrics'
 import type { Nino, Registro, Sabado } from '@/lib/types'
 
 export default function DashboardPage() {
@@ -36,7 +36,7 @@ export default function DashboardPage() {
     return () => { cancelled = true }
   }, [])
 
-  const activeNinos = useMemo(() => ninos.filter(n => n.activo), [ninos])
+  const activeNinos = useMemo(() => ninos.filter(isActiveNino), [ninos])
   const activeIds = useMemo(() => new Set(activeNinos.map(n => n.id)), [activeNinos])
   const sabadosYear = useMemo(() => filterSabadosByYear(sabados, year), [sabados, year])
   const registrosActivos = useMemo(() => registros.filter(r => activeIds.has(r.ninoId)), [registros, activeIds])

@@ -1,19 +1,16 @@
 'use client'
 
-import { use, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useParams } from 'next/navigation'
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Card, CardContent } from '@/components/ui/card'
 import { PageFade } from '@/components/ui/page-fade'
 import { getAllSabados, getAppConfig, getNinosByGrupo, getRegistrosByNinos } from '@/lib/firestore'
-import { countAttendanceForSabado, countPaidForSabado, filterSabadosByYear, getYears } from '@/lib/metrics'
+import { countAttendanceForSabado, countPaidForSabado, filterSabadosByYear, getYears, isActiveNino } from '@/lib/metrics'
 import type { Nino, Registro, Sabado } from '@/lib/types'
 
-interface Props {
-  params: Promise<{ id: string }>
-}
-
-export default function GrupoDashboardPage({ params }: Props) {
-  const { id } = use(params)
+export default function GrupoDashboardPage() {
+  const { id } = useParams<{ id: string }>()
   const [loading, setLoading] = useState(true)
   const [year, setYear] = useState(new Date().getFullYear())
   const [sabados, setSabados] = useState<Sabado[]>([])
@@ -25,7 +22,7 @@ export default function GrupoDashboardPage({ params }: Props) {
     Promise.all([getAllSabados(), getNinosByGrupo(id), getAppConfig()])
       .then(async ([sabadosData, ninosData, config]) => {
         if (cancelled) return
-        const active = ninosData.filter(n => n.activo)
+        const active = ninosData.filter(isActiveNino)
         const registrosData = await getRegistrosByNinos(active.map(n => n.id))
         if (cancelled) return
         setSabados(sabadosData)

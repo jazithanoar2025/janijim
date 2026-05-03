@@ -1,17 +1,14 @@
 'use client'
 
-import { use, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useParams } from 'next/navigation'
 import { PageFade } from '@/components/ui/page-fade'
 import { getAllSabados, getAppConfig, getNinosByGrupo, getRegistrosByNinos } from '@/lib/firestore'
 import { computeDebtRows, filterSabadosByYear, getYears } from '@/lib/metrics'
 import type { Nino, Registro, Sabado } from '@/lib/types'
 
-interface Props {
-  params: Promise<{ id: string }>
-}
-
-export default function DeudasPage({ params }: Props) {
-  const { id } = use(params)
+export default function DeudasPage() {
+  const { id } = useParams<{ id: string }>()
   const [loading, setLoading] = useState(true)
   const [year, setYear] = useState(new Date().getFullYear())
   const [sabados, setSabados] = useState<Sabado[]>([])

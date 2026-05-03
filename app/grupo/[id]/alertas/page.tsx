@@ -1,17 +1,14 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { PageFade } from '@/components/ui/page-fade'
 import { getAllSabados, getAppConfig, getNinosByGrupo, getRegistrosByNinos } from '@/lib/firestore'
 import { computeAlerts, type Alerta } from '@/lib/alerts'
 
-interface Props {
-  params: Promise<{ id: string }>
-}
-
-export default function AlertasPage({ params }: Props) {
-  const { id } = use(params)
+export default function AlertasPage() {
+  const { id } = useParams<{ id: string }>()
   const [loading, setLoading] = useState(true)
   const [alerts, setAlerts] = useState<Alerta[]>([])
 

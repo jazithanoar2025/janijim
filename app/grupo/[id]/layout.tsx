@@ -1,6 +1,7 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
 import { AuthGuard } from '@/components/auth/AuthGuard'
 import { AdminBottomNav } from '@/components/layout/AdminBottomNav'
 import { getAllSabados, getNinosByGrupo, getRegistrosByNinos, getAppConfig } from '@/lib/firestore'
@@ -8,11 +9,10 @@ import { computeAlerts } from '@/lib/alerts'
 
 interface AdminLayoutProps {
   children: React.ReactNode
-  params: Promise<{ id: string }>
 }
 
-export default function AdminLayout({ children, params }: AdminLayoutProps) {
-  const { id } = use(params)
+export default function AdminLayout({ children }: AdminLayoutProps) {
+  const { id } = useParams<{ id: string }>()
   const [alertCount, setAlertCount] = useState(0)
 
   useEffect(() => {

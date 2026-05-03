@@ -43,19 +43,6 @@ export async function getAllSabados(): Promise<Sabado[]> {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }) as Sabado)
 }
 
-export async function getSabadosByYear(year: number): Promise<Sabado[]> {
-  const snap = await getDocs(query(collection(getDb(), 'sabados'), orderBy('fecha', 'desc')))
-  return snap.docs
-    .map(d => ({ id: d.id, ...d.data() }) as Sabado)
-    .filter(s => s.fecha.startsWith(String(year)))
-}
-
-export async function getRegistrosBySabado(sabadoId: string): Promise<Registro[]> {
-  const q = query(collection(getDb(), 'registros'), where('sabadoId', '==', sabadoId))
-  const snap = await getDocs(q)
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }) as Registro)
-}
-
 export async function getRegistrosBySabadoAndNinos(sabadoId: string, ninoIds: string[]): Promise<Registro[]> {
   if (ninoIds.length === 0) return []
   const chunks = chunk(ninoIds, 30)
@@ -70,12 +57,6 @@ export async function getRegistrosBySabadoAndNinos(sabadoId: string, ninoIds: st
     registros.push(...snap.docs.map(d => ({ id: d.id, ...d.data() }) as Registro))
   }
   return registros
-}
-
-export async function getRegistrosByNino(ninoId: string): Promise<Registro[]> {
-  const q = query(collection(getDb(), 'registros'), where('ninoId', '==', ninoId))
-  const snap = await getDocs(q)
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }) as Registro)
 }
 
 export async function getRegistrosByNinos(ninoIds: string[]): Promise<Registro[]> {
@@ -100,11 +81,9 @@ export async function getAppConfig(): Promise<AppConfig> {
   return snap.data() as AppConfig
 }
 
-export async function updateAppConfig(data: Partial<AppConfig>): Promise<void> {
+export async function setAppConfig(data: Partial<AppConfig>): Promise<void> {
   await setDoc(doc(getDb(), 'config', 'app'), data, { merge: true })
 }
-
-export const setAppConfig = updateAppConfig
 
 export async function addNino(data: Omit<Nino, 'id'>): Promise<string> {
   const ref = await addDoc(collection(getDb(), 'ninos'), data)
