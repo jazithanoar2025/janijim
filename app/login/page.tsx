@@ -20,6 +20,7 @@ function getLoginErrorMessage(err: unknown) {
   const code = typeof err === 'object' && err !== null && 'code' in err
     ? String((err as { code?: unknown }).code)
     : ''
+  const message = err instanceof Error ? err.message : ''
 
   if (code === 'auth/unauthorized-domain') {
     return 'Dominio no autorizado en Firebase Auth. Agregá este dominio de Vercel en Firebase > Authentication > Settings > Authorized domains.'
@@ -34,6 +35,8 @@ function getLoginErrorMessage(err: unknown) {
   }
 
   if (code) return `No se pudo iniciar sesión (${code}).`
+
+  if (message) return `No se pudo iniciar sesión: ${message}`
 
   return 'No se pudo iniciar sesión.'
 }
