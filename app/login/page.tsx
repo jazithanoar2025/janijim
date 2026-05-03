@@ -10,6 +10,34 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
+function normalizeLoginIdentifier(value: string) {
+  const trimmed = value.trim()
+  if (trimmed === 'admin') return 'admin@jazit.local'
+  return trimmed
+}
+
+function getLoginErrorMessage(err: unknown) {
+  const code = typeof err === 'object' && err !== null && 'code' in err
+    ? String((err as { code?: unknown }).code)
+    : ''
+
+  if (code === 'auth/unauthorized-domain') {
+    return 'Dominio no autorizado en Firebase Auth. Agregá este dominio de Vercel en Firebase > Authentication > Settings > Authorized domains.'
+  }
+
+  if (code === 'auth/invalid-api-key' || code === 'auth/api-key-not-valid') {
+    return 'La API key de Firebase en Vercel no coincide con el proyecto.'
+  }
+
+  if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
+    return 'Usuario o contraseña incorrectos.'
+  }
+
+  if (code) return `No se pudo iniciar sesión (${code}).`
+
+  return 'No se pudo iniciar sesión.'
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
@@ -24,7 +52,11 @@ export default function LoginPage() {
 
     try {
       const auth = getFirebaseAuth()
-      const credential = await signInWithEmailAndPassword(auth, email, password)
+      const credential = await signInWithEmailAndPassword(
+        auth,
+        normalizeLoginIdentifier(email),
+        password
+      )
       const usuario = await getUsuario(credential.user.uid)
 
       if (!usuario) {
@@ -42,15 +74,15 @@ export default function LoginPage() {
         await signOut(auth)
         setError('Rol no configurado. Contactá al administrador.')
       }
-    } catch {
-      setError('Email o contraseña incorrectos.')
+    } catch (err) {
+      setError(getLoginErrorMessage(err))
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+    <main className="min-h-screen flex items-center justify-center bg-blue-600 p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Jazit Hanoar</CardTitle>
@@ -59,10 +91,10 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Usuario o email</Label>
               <Input
                 id="email"
-                type="email"
+                type="text"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
