@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 function normalizeLoginIdentifier(value: string) {
   const trimmed = value.trim()
-  if (trimmed === 'admin') return 'admin@jazit.local'
+  if (!trimmed.includes('@')) return `${trimmed}@jazit.local`
   return trimmed
 }
 
@@ -82,19 +82,30 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-blue-600 p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Jazit Hanoar</CardTitle>
-          <p className="text-sm text-slate-500">El Gigante de Rivera</p>
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#3f7198] via-[#123d67] to-[#1f5d9a] p-4">
+      <div className="w-full max-w-md space-y-9">
+        <div className="text-center text-white">
+          <div className="mx-auto mb-5 flex size-20 items-center justify-center rounded-3xl border border-white/25 bg-white/15 text-2xl font-black shadow-xl shadow-slate-950/20 backdrop-blur">
+            JH
+          </div>
+          <h1 className="text-3xl font-extrabold leading-none tracking-normal">Jazit Hanoar</h1>
+          <p className="mt-2 text-sm font-medium text-white/75">El gigante de Rivera <span className="mx-1">·</span> v8</p>
+        </div>
+
+        <Card className="w-full rounded-[22px] border-0 bg-white p-2 shadow-2xl shadow-slate-950/20">
+          <CardHeader className="sr-only">
+            <CardTitle>Jazit Hanoar</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 sm:p-5">
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Usuario o email</Label>
+              <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Usuario
+              </Label>
               <Input
                 id="email"
                 type="text"
+                placeholder="tu@email.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
@@ -102,7 +113,9 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
+              <Label htmlFor="password" className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Contraseña
+              </Label>
               <Input
                 id="password"
                 type="password"
@@ -121,6 +134,7 @@ export default function LoginPage() {
           </form>
         </CardContent>
       </Card>
+      </div>
     </main>
   )
 }
