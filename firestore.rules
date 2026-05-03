@@ -26,12 +26,24 @@ service cloud.firestore {
       return hasProfile() && profile().rol == 'admin' && profile().grupoId == grupoId;
     }
 
+    function ninoPath(ninoId) {
+      return /databases/$(database)/documents/ninos/$(ninoId);
+    }
+
+    function canReadOrWriteNino(ninoId) {
+      return isSuperadmin() || (exists(ninoPath(ninoId)) && isAdminFor(get(ninoPath(ninoId)).data.grupoId));
+    }
+
     function isNonEmptyString(value, maxLength) {
       return value is string && value.size() > 0 && value.size() <= maxLength;
     }
 
     function isOptionalString(data, field, maxLength) {
       return !(field in data) || (data[field] is string && data[field].size() <= maxLength);
+    }
+
+    function isOptionalBool(data, field) {
+      return !(field in data) || data[field] is bool;
     }
 
     function isNonNegativeNumber(value) {
@@ -59,38 +71,35 @@ service cloud.firestore {
         isOptionalString(data, 'adminUid', 128);
     }
 
-    function validJanij(data) {
-      return data.keys().hasOnly(['nombre', 'apellido', 'grupoId', 'escuela', 'telefono', 'observaciones']) &&
+    function validNino(data) {
+      return data.keys().hasOnly(['nombre', 'apellido', 'grupoId', 'escuela', 'telefono', 'observaciones', 'activo', 'creadoEn']) &&
         isNonEmptyString(data.nombre, 80) &&
         isNonEmptyString(data.apellido, 80) &&
         isNonEmptyString(data.grupoId, 128) &&
         isOptionalString(data, 'escuela', 120) &&
         isOptionalString(data, 'telefono', 40) &&
-        isOptionalString(data, 'observaciones', 500);
+        isOptionalString(data, 'observaciones', 500) &&
+        isOptionalString(data, 'creadoEn', 40) &&
+        isOptionalBool(data, 'activo');
     }
 
     function validSabado(data) {
-      return data.keys().hasOnly(['fecha', 'monto', 'observacion', 'grupoId']) &&
+      return data.keys().hasOnly(['fecha', 'monto', 'observacion', 'creadoEn', 'creadoPor']) &&
         isIsoDate(data.fecha) &&
         isNonNegativeNumber(data.monto) &&
-        isNonEmptyString(data.grupoId, 128) &&
-        isOptionalString(data, 'observacion', 500);
+        isOptionalString(data, 'observacion', 500) &&
+        isOptionalString(data, 'creadoEn', 40) &&
+        isOptionalString(data, 'creadoPor', 254);
     }
 
-    function validAsistencia(data) {
-      return data.keys().hasOnly(['janijId', 'sabadoId', 'grupoId', 'asistio', 'deuda']) &&
-        isNonEmptyString(data.janijId, 128) &&
+    function validRegistro(data) {
+      return data.keys().hasOnly(['ninoId', 'sabadoId', 'vino', 'pago', 'fechaHora', 'registradoPor']) &&
+        isNonEmptyString(data.ninoId, 128) &&
         isNonEmptyString(data.sabadoId, 128) &&
-        isNonEmptyString(data.grupoId, 128) &&
-        data.asistio is bool &&
-        isNonNegativeNumber(data.deuda);
-    }
-
-    function asistenciaRefsMatch(data) {
-      return exists(/databases/$(database)/documents/sabados/$(data.sabadoId)) &&
-        exists(/databases/$(database)/documents/janijim/$(data.janijId)) &&
-        get(/databases/$(database)/documents/sabados/$(data.sabadoId)).data.grupoId == data.grupoId &&
-        get(/databases/$(database)/documents/janijim/$(data.janijId)).data.grupoId == data.grupoId;
+        data.vino is bool &&
+        data.pago is bool &&
+        isOptionalString(data, 'fechaHora', 40) &&
+        isOptionalString(data, 'registradoPor', 254);
     }
 
     function validAppConfig(data) {
@@ -115,40 +124,35 @@ service cloud.firestore {
       allow delete: isSuperadmin();
     }
 
-    match /janijim/{janijId} {
+    match /ninos/{ninoId} {
       allow read: isSuperadmin() || isAdminFor(resource.data.grupoId);
-      allow create: validJanij(request.resource.data) &&
+      allow create: validNino(request.resource.data) &&
         (isSuperadmin() || isAdminFor(request.resource.data.grupoId));
-      allow update: validJanij(request.resource.data) &&
+      allow update: validNino(request.resource.data) &&
         request.resource.data.grupoId == resource.data.grupoId &&
         (isSuperadmin() || isAdminFor(resource.data.grupoId));
       allow delete: isSuperadmin() || isAdminFor(resource.data.grupoId);
     }
 
     match /sabados/{sabadoId} {
-      allow read: isSuperadmin() || isAdminFor(resource.data.grupoId);
-      allow create: validSabado(request.resource.data) &&
-        (isSuperadmin() || isAdminFor(request.resource.data.grupoId));
-      allow update: validSabado(request.resource.data) &&
-        request.resource.data.grupoId == resource.data.grupoId &&
-        (isSuperadmin() || isAdminFor(resource.data.grupoId));
-      allow delete: isSuperadmin() || isAdminFor(resource.data.grupoId);
+      allow read: hasProfile();
+      allow create, update: isSuperadmin() && validSabado(request.resource.data);
+      allow delete: isSuperadmin();
     }
 
-    match /asistencia/{asistenciaId} {
-      allow read: isSuperadmin() || isAdminFor(resource.data.grupoId);
-      allow create: validAsistencia(request.resource.data) &&
-        asistenciaId == request.resource.data.sabadoId + '_' + request.resource.data.janijId &&
-        asistenciaRefsMatch(request.resource.data) &&
-        (isSuperadmin() || isAdminFor(request.resource.data.grupoId));
-      allow update: validAsistencia(request.resource.data) &&
-        asistenciaId == request.resource.data.sabadoId + '_' + request.resource.data.janijId &&
+    match /registros/{registroId} {
+      allow read: canReadOrWriteNino(resource.data.ninoId);
+      allow create: validRegistro(request.resource.data) &&
+        registroId == request.resource.data.sabadoId + '_' + request.resource.data.ninoId &&
+        exists(/databases/$(database)/documents/sabados/$(request.resource.data.sabadoId)) &&
+        canReadOrWriteNino(request.resource.data.ninoId);
+      allow update: validRegistro(request.resource.data) &&
+        registroId == request.resource.data.sabadoId + '_' + request.resource.data.ninoId &&
         request.resource.data.sabadoId == resource.data.sabadoId &&
-        request.resource.data.janijId == resource.data.janijId &&
-        request.resource.data.grupoId == resource.data.grupoId &&
-        asistenciaRefsMatch(request.resource.data) &&
-        (isSuperadmin() || isAdminFor(resource.data.grupoId));
-      allow delete: isSuperadmin() || isAdminFor(resource.data.grupoId);
+        request.resource.data.ninoId == resource.data.ninoId &&
+        exists(/databases/$(database)/documents/sabados/$(request.resource.data.sabadoId)) &&
+        canReadOrWriteNino(request.resource.data.ninoId);
+      allow delete: canReadOrWriteNino(resource.data.ninoId);
     }
 
     match /config/{configId} {

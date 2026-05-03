@@ -1,9 +1,10 @@
 'use client'
 
 import { use, useEffect, useState } from 'react'
-import { getSabadosByGrupo, getJanijimByGrupo, getAsistenciaByGrupo } from '@/lib/firestore'
-import { computeAlerts } from '@/lib/alerts'
-import type { Alerta } from '@/lib/alerts'
+import { Badge } from '@/components/ui/badge'
+import { PageFade } from '@/components/ui/page-fade'
+import { getAllSabados, getAppConfig, getNinosByGrupo, getRegistrosByNinos } from '@/lib/firestore'
+import { computeAlerts, type Alerta } from '@/lib/alerts'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -11,67 +12,67 @@ interface Props {
 
 export default function AlertasPage({ params }: Props) {
   const { id } = use(params)
-  const [alerts, setAlerts] = useState<Alerta[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [alerts, setAlerts] = useState<Alerta[]>([])
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setAlerts([])
-    setError(null)
-    Promise.all([
-      getSabadosByGrupo(id),
-      getJanijimByGrupo(id),
-      getAsistenciaByGrupo(id),
-    ]).then(([sabados, janijim, asistencia]) => {
-      if (!cancelled) {
-        setAlerts(computeAlerts(sabados, janijim, asistencia))
+    Promise.all([getAllSabados(), getNinosByGrupo(id), getAppConfig()])
+      .then(async ([sabados, ninos, config]) => {
+        if (cancelled) return
+        const registros = await getRegistrosByNinos(ninos.map(n => n.id))
+        if (cancelled) return
+        setAlerts(computeAlerts(sabados, ninos, registros, config.umbralFidelidadAlerta, config.añoActivo))
         setLoading(false)
-      }
-    }).catch(err => {
-      console.error('Failed to load alerts:', err)
-      if (!cancelled) {
-        setError('No se pudieron cargar las alertas.')
-        setLoading(false)
-      }
-    })
+      })
+      .catch(err => {
+        console.error('Failed to load alerts:', err)
+        if (!cancelled) setLoading(false)
+      })
     return () => { cancelled = true }
   }, [id])
 
-  if (loading) return <p className="text-slate-500 text-sm">Cargando...</p>
-
-  if (error) return <p className="text-red-500 text-sm">{error}</p>
+  if (loading) {
+    return (
+      <PageFade>
+        {[0, 1, 2, 3].map(i => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse mb-2" />)}
+      </PageFade>
+    )
+  }
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-bold text-slate-900">Alertas</h2>
+    <PageFade>
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">Alertas</h2>
+          <p className="text-sm text-slate-500">Fidelidad por debajo del umbral configurado</p>
+        </div>
 
-      {alerts.length === 0 && (
-        <p className="text-sm text-slate-400">No hay alertas activas. ¡Todos al día!</p>
-      )}
-
-      <div className="space-y-2">
-        {alerts.map(({ janij, consecutiveAbsences, severity }) => (
-          <div
-            key={janij.id}
-            className="flex items-center gap-3 bg-white border rounded-lg p-3"
-          >
-            <span className="text-xl" aria-hidden="true">{severity === 'critical' ? '🔴' : '🟡'}</span>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-slate-900 truncate">
-                {janij.nombre} {janij.apellido}
-              </p>
-              {janij.escuela && (
-                <p className="text-xs text-slate-400 truncate">{janij.escuela}</p>
-              )}
-            </div>
-            <span className="text-sm text-slate-600 shrink-0">
-              {consecutiveAbsences} faltas seguidas
-            </span>
+        {alerts.length === 0 && (
+          <div className="rounded-xl border bg-white p-4 text-sm text-slate-500">
+            Todos los janijim superan el umbral de fidelidad
           </div>
-        ))}
+        )}
+
+        <div className="space-y-2">
+          {alerts.map(({ nino, fidelidad, severity }) => (
+            <div key={nino.id} className="rounded-xl border bg-white p-4 transition-colors duration-100 hover:bg-slate-50">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-slate-900">{nino.nombre} {nino.apellido}</p>
+                  {nino.escuela && <p className="text-xs text-slate-400">{nino.escuela}</p>}
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-slate-900">{fidelidad}%</p>
+                  <Badge className={severity === 'critical' ? 'bg-red-500' : 'bg-yellow-500'}>
+                    {severity === 'critical' ? 'Crítica' : 'Atención'}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </PageFade>
   )
 }

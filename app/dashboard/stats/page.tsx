@@ -1,133 +1,130 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { getAllJanijim, getGrupos } from '@/lib/firestore'
+import { useEffect, useMemo, useState } from 'react'
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-
-interface GrupoBar {
-  nombre: string
-  janijim: number
-}
-
-interface EscuelaRow {
-  escuela: string
-  count: number
-  pct: string
-}
+import { PageFade } from '@/components/ui/page-fade'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { getAllNinos, getAllRegistros, getAllSabados, getGrupos } from '@/lib/firestore'
+import { attendanceRate, filterSabadosByYear } from '@/lib/metrics'
+import type { Grupo, Nino, Registro, Sabado } from '@/lib/types'
 
 export default function StatsPage() {
+  const currentYear = new Date().getFullYear()
   const [loading, setLoading] = useState(true)
-  const [grupoData, setGrupoData] = useState<GrupoBar[]>([])
-  const [escuelaData, setEscuelaData] = useState<EscuelaRow[]>([])
-  const [total, setTotal] = useState(0)
+  const [startYear, setStartYear] = useState(Math.max(2021, currentYear - 3))
+  const [endYear, setEndYear] = useState(currentYear)
+  const [ninos, setNinos] = useState<Nino[]>([])
+  const [grupos, setGrupos] = useState<Grupo[]>([])
+  const [sabados, setSabados] = useState<Sabado[]>([])
+  const [registros, setRegistros] = useState<Registro[]>([])
 
   useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    Promise.all([getAllJanijim(), getGrupos()])
-      .then(([janijim, grupos]) => {
-        if (cancelled) return
-        const countByGrupo = new Map<string, number>()
-        const countByEscuela = new Map<string, number>()
-        for (const j of janijim) {
-          countByGrupo.set(j.grupoId, (countByGrupo.get(j.grupoId) ?? 0) + 1)
-          const esc = j.escuela ?? 'Sin escuela'
-          countByEscuela.set(esc, (countByEscuela.get(esc) ?? 0) + 1)
-        }
-        const gData: GrupoBar[] = grupos.map(g => ({
-          nombre: g.nombre,
-          janijim: countByGrupo.get(g.id) ?? 0,
-        }))
-        const tot = janijim.length
-        const eData: EscuelaRow[] = Array.from(countByEscuela.entries())
-          .sort((a, b) => b[1] - a[1])
-          .map(([escuela, count]) => ({
-            escuela,
-            count,
-            pct: tot > 0 ? `${Math.round((count / tot) * 100)}%` : '—',
-          }))
-        setGrupoData(gData)
-        setEscuelaData(eData)
-        setTotal(tot)
-        setLoading(false)
+    Promise.all([getAllNinos(), getGrupos(), getAllSabados(), getAllRegistros()])
+      .then(([ninosData, gruposData, sabadosData, registrosData]) => {
+        setNinos(ninosData)
+        setGrupos(gruposData)
+        setSabados(sabadosData)
+        setRegistros(registrosData)
       })
-      .catch(err => {
-        console.error('Failed to load stats:', err)
-        if (!cancelled) setLoading(false)
-      })
-    return () => { cancelled = true }
+      .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <p className="text-slate-500 text-sm">Cargando...</p>
+  const activeNinos = useMemo(() => ninos.filter(n => n.activo), [ninos])
+  const yearOptions = Array.from({ length: currentYear - 2021 + 1 }, (_, i) => 2021 + i)
+  const selectedYears = yearOptions.filter(y => y >= startYear && y <= endYear)
+
+  const yearlyData = selectedYears.map(year => {
+    const sabadosYear = filterSabadosByYear(sabados, year)
+    const sabadoIds = new Set(sabadosYear.map(s => s.id))
+    const ninoIdsWithRecords = new Set(registros.filter(r => sabadoIds.has(r.sabadoId)).map(r => r.ninoId))
+    return {
+      year,
+      asistencia: attendanceRate(sabadoIds, registros.filter(r => activeNinos.some(n => n.id === r.ninoId)), activeNinos.length),
+      janijim: ninoIdsWithRecords.size || activeNinos.length,
+      sabados: sabadosYear.length,
+    }
+  })
+
+  const byKvutza = grupos.map(grupo => ({
+    nombre: grupo.nombre,
+    janijim: activeNinos.filter(n => n.grupoId === grupo.id).length,
+  }))
+
+  if (loading) {
+    return (
+      <PageFade>
+        <div className="h-48 bg-slate-100 rounded-xl animate-pulse mb-4" />
+        <div className="h-48 bg-slate-100 rounded-xl animate-pulse" />
+      </PageFade>
+    )
+  }
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-slate-900">Estadísticas</h2>
-
-      <Card>
-        <CardContent className="p-4">
-          <p className="text-sm font-medium text-slate-700 mb-4">Janijim por grupo</p>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={grupoData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="nombre" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Bar dataKey="janijim" fill="#3b82f6" radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      <div>
-        <p className="text-sm font-medium text-slate-700 mb-2">
-          Por escuela ({total} total)
-        </p>
-        <div className="bg-white border rounded-lg overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Escuela</TableHead>
-                <TableHead className="text-right">Janijim</TableHead>
-                <TableHead className="text-right">%</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {escuelaData.map(({ escuela, count, pct }) => (
-                <TableRow key={escuela}>
-                  <TableCell>{escuela}</TableCell>
-                  <TableCell className="text-right">{count}</TableCell>
-                  <TableCell className="text-right text-slate-500">{pct}</TableCell>
-                </TableRow>
-              ))}
-              {escuelaData.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-center text-slate-400">
-                    Sin datos
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+    <PageFade>
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <h2 className="text-2xl font-bold text-slate-900">Estadísticas</h2>
+          <div className="flex items-center gap-2">
+            <select value={startYear} onChange={e => setStartYear(Number(e.target.value))} className="h-8 rounded-lg border bg-white px-2 text-sm">
+              {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+            <span className="text-sm text-slate-500">a</span>
+            <select value={endYear} onChange={e => setEndYear(Number(e.target.value))} className="h-8 rounded-lg border bg-white px-2 text-sm">
+              {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
         </div>
+
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm font-medium text-slate-700 mb-4">Asistencia promedio por año</p>
+            <ResponsiveContainer width="100%" height={240}>
+              <LineChart data={yearlyData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="year" tick={{ fontSize: 11 }} />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Line type="monotone" dataKey="asistencia" stroke="#2563eb" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm font-medium text-slate-700 mb-4">Janijim activos por kvutza</p>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={byKvutza}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="nombre" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Bar dataKey="janijim" fill="#16a34a" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm font-medium text-slate-700 mb-4">Tendencia histórica</p>
+            <Table>
+              <TableHeader><TableRow><TableHead>Año</TableHead><TableHead>Asistencia</TableHead><TableHead>Janijim</TableHead><TableHead>Sábados</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {yearlyData.map(row => (
+                  <TableRow key={row.year} className="transition-colors duration-100 hover:bg-slate-50">
+                    <TableCell>{row.year}</TableCell>
+                    <TableCell>{row.asistencia}%</TableCell>
+                    <TableCell>{row.janijim}</TableCell>
+                    <TableCell>{row.sabados}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
-    </div>
+    </PageFade>
   )
 }

@@ -1,47 +1,42 @@
-import type { Janij, Sabado, RegistroAsistencia } from './types'
+import type { Nino, Sabado, Registro } from './types'
 
 export interface Alerta {
-  janij: Janij
-  consecutiveAbsences: number
+  nino: Nino
+  fidelidad: number
   severity: 'warning' | 'critical'
 }
 
 export function computeAlerts(
   sabados: Sabado[],
-  janijim: Janij[],
-  asistencia: RegistroAsistencia[]
+  ninos: Nino[],
+  registros: Registro[],
+  umbral: number,
+  año: number
 ): Alerta[] {
-  // Build map: `${sabadoId}_${janijId}` → asistio
-  const asistioMap = new Map<string, boolean>()
-  for (const r of asistencia) {
-    asistioMap.set(`${r.sabadoId}_${r.janijId}`, r.asistio)
+  const sabadosAnio = sabados.filter(s => s.fecha.startsWith(String(año)))
+  if (sabadosAnio.length === 0) return []
+
+  const sabadoIds = new Set(sabadosAnio.map(s => s.id))
+  const vinoMap = new Map<string, number>()
+  for (const r of registros) {
+    if (r.vino && sabadoIds.has(r.sabadoId)) {
+      vinoMap.set(r.ninoId, (vinoMap.get(r.ninoId) ?? 0) + 1)
+    }
   }
 
-  // Sort internally to enforce expected order: newest first
-  const sortedSabados = [...sabados].sort((a, b) => b.fecha.localeCompare(a.fecha))
-
   const alerts: Alerta[] = []
-
-  for (const janij of janijim) {
-    let consecutive = 0
-    for (const sab of sortedSabados) {
-      const attended = asistioMap.get(`${sab.id}_${janij.id}`)
-      if (attended === undefined) break  // sábado not yet processed, stop counting
-      if (attended === true) break       // was present, stop counting
-      consecutive++
-    }
-    if (consecutive >= 2) {
+  for (const nino of ninos) {
+    if (!nino.activo) continue
+    const asistencias = vinoMap.get(nino.id) ?? 0
+    const fidelidad = Math.round((asistencias / sabadosAnio.length) * 100)
+    if (fidelidad < umbral) {
       alerts.push({
-        janij,
-        consecutiveAbsences: consecutive,
-        severity: consecutive >= 3 ? 'critical' : 'warning',
+        nino,
+        fidelidad,
+        severity: fidelidad < umbral / 2 ? 'critical' : 'warning',
       })
     }
   }
 
-  // Sort: critical first, then by consecutiveAbsences desc
-  return alerts.sort((a, b) => {
-    if (a.severity !== b.severity) return a.severity === 'critical' ? -1 : 1
-    return b.consecutiveAbsences - a.consecutiveAbsences
-  })
+  return alerts.sort((a, b) => a.fidelidad - b.fidelidad)
 }

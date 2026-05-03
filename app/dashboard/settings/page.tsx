@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PageFade } from '@/components/ui/page-fade'
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
@@ -61,9 +62,16 @@ export default function SettingsPage() {
     }
   }
 
-  if (loading) return <p className="text-slate-500 text-sm">Cargando...</p>
+  if (loading) {
+    return (
+      <PageFade>
+        <div className="h-20 bg-slate-100 rounded-xl animate-pulse" />
+      </PageFade>
+    )
+  }
 
   return (
+    <PageFade>
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-slate-900">Configuración</h2>
 
@@ -94,7 +102,7 @@ export default function SettingsPage() {
           <Button
             onClick={handleSave}
             disabled={saving || !añoActivo || !umbral}
-            className="w-full"
+            className={`w-full transition-all duration-200 ${saved ? 'bg-green-600 text-white' : ''}`}
           >
             {saving ? 'Guardando...' : saved ? '¡Guardado!' : 'Guardar cambios'}
           </Button>
@@ -102,5 +110,6 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
     </div>
+    </PageFade>
   )
 }

@@ -14,7 +14,7 @@ export interface Grupo {
   adminUid?: string
 }
 
-export interface Janij {
+export interface Nino {
   id: string
   nombre: string
   apellido: string
@@ -22,23 +22,27 @@ export interface Janij {
   escuela?: string
   telefono?: string
   observaciones?: string
+  activo: boolean
+  creadoEn?: string
 }
 
 export interface Sabado {
   id: string
-  fecha: string       // ISO date string YYYY-MM-DD
+  fecha: string
   monto: number
   observacion?: string
-  grupoId: string
+  creadoEn?: string
+  creadoPor?: string
 }
 
-export interface RegistroAsistencia {
+export interface Registro {
   id: string
-  janijId: string
   sabadoId: string
-  grupoId: string
-  asistio: boolean
-  deuda: number
+  ninoId: string
+  vino: boolean
+  pago: boolean
+  fechaHora?: string
+  registradoPor?: string
 }
 
 export interface AppConfig {

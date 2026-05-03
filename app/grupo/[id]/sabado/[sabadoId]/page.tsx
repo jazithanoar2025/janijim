@@ -1,116 +1,89 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import {
-  getSabadosByGrupo,
-  getJanijimByGrupo,
-  getAsistenciaBySabado,
-  batchSaveAsistencia,
-  deleteSabado,
-} from '@/lib/firestore'
-import type { Sabado, Janij, RegistroAsistencia } from '@/lib/types'
+import Link from 'next/link'
+import { use, useEffect, useMemo, useState } from 'react'
+import { ArrowLeft, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent } from '@/components/ui/card'
-import { ArrowLeft, Save, Trash2, Users, Percent, DollarSign } from 'lucide-react'
+import { PageFade } from '@/components/ui/page-fade'
+import { getFirebaseAuth } from '@/lib/firebase'
+import { batchSaveRegistros, getAllSabados, getNinosByGrupo, getRegistrosBySabadoAndNinos } from '@/lib/firestore'
+import type { Nino, Registro, Sabado } from '@/lib/types'
 
 interface Props {
   params: Promise<{ id: string; sabadoId: string }>
 }
 
-interface RowState {
-  asistio: boolean
-  deuda: string
-}
+type RowState = Record<string, { vino: boolean; pago: boolean }>
 
-export default function SabadoDetailPage({ params }: Props) {
+export default function SabadoPage({ params }: Props) {
   const { id: grupoId, sabadoId } = use(params)
-  const router = useRouter()
-
-  const [sabado, setSabado] = useState<Sabado | null>(null)
-  const [janijim, setJanijim] = useState<Janij[]>([])
-  const [rows, setRows] = useState<Record<string, RowState>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const [sabado, setSabado] = useState<Sabado | null>(null)
+  const [ninos, setNinos] = useState<Nino[]>([])
+  const [rows, setRows] = useState<RowState>({})
 
   useEffect(() => {
     let cancelled = false
-    async function load() {
-      setLoading(true)
-      setError(null)
-      try {
-        const [sabados, jans, asistencia] = await Promise.all([
-          getSabadosByGrupo(grupoId),
-          getJanijimByGrupo(grupoId),
-          getAsistenciaBySabado(sabadoId),
-        ])
-
+    setLoading(true)
+    Promise.all([getAllSabados(), getNinosByGrupo(grupoId)])
+      .then(async ([sabados, ninosData]) => {
         if (cancelled) return
-
-        setSabado(sabados.find(s => s.id === sabadoId) ?? null)
-
-        const sorted = jans.sort((a, b) => a.apellido.localeCompare(b.apellido))
-        setJanijim(sorted)
-
-        const asistenciaMap: Record<string, RegistroAsistencia> = {}
-        asistencia.forEach(r => { asistenciaMap[r.janijId] = r })
-
-        const initialRows: Record<string, RowState> = {}
-        sorted.forEach(j => {
-          const existing = asistenciaMap[j.id]
-          initialRows[j.id] = {
-            asistio: existing?.asistio ?? false,
-            deuda: existing?.deuda != null ? String(existing.deuda) : '',
-          }
-        })
-        setRows(initialRows)
-        setSaved(asistencia.length > 0)
-      } catch (err) {
-        console.error('Failed to load sabado:', err)
-        if (!cancelled) setError('No se pudo cargar la asistencia.')
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    load()
+        const selected = sabados.find(s => s.id === sabadoId) ?? null
+        const activos = ninosData.filter(n => n.activo).sort((a, b) => a.apellido.localeCompare(b.apellido))
+        const registros = await getRegistrosBySabadoAndNinos(sabadoId, activos.map(n => n.id))
+        if (cancelled) return
+        const byNino = new Map(registros.map((r: Registro) => [r.ninoId, r]))
+        const nextRows: RowState = {}
+        for (const nino of activos) {
+          const existing = byNino.get(nino.id)
+          nextRows[nino.id] = { vino: existing?.vino ?? false, pago: existing?.pago ?? false }
+        }
+        setSabado(selected)
+        setNinos(activos)
+        setRows(nextRows)
+        setLoading(false)
+      })
+      .catch(err => {
+        console.error('Failed to load attendance:', err)
+        if (!cancelled) {
+          setError('No se pudo cargar la asistencia.')
+          setLoading(false)
+        }
+      })
     return () => { cancelled = true }
   }, [grupoId, sabadoId])
 
-  function toggleAsistio(janijId: string) {
-    setRows(r => ({ ...r, [janijId]: { ...r[janijId], asistio: !r[janijId].asistio } }))
-    setSaved(false)
-  }
+  const asistentes = useMemo(() => Object.values(rows).filter(r => r.vino).length, [rows])
+  const pagos = useMemo(() => Object.values(rows).filter(r => r.vino && r.pago).length, [rows])
 
-  function setDeuda(janijId: string, value: string) {
-    setRows(r => ({ ...r, [janijId]: { ...r[janijId], deuda: value } }))
+  function updateRow(ninoId: string, patch: Partial<{ vino: boolean; pago: boolean }>) {
+    setRows(prev => {
+      const current = prev[ninoId] ?? { vino: false, pago: false }
+      const next = { ...current, ...patch }
+      if (!next.vino) next.pago = false
+      return { ...prev, [ninoId]: next }
+    })
     setSaved(false)
   }
 
   async function handleSave() {
-    if (!sabado) return
-    const registros = janijim.map(j => {
-      const deuda = rows[j.id]?.deuda.trim() ? Number(rows[j.id]?.deuda) : 0
-      return {
-        janijId: j.id,
-        sabadoId,
-        grupoId,
-        asistio: rows[j.id]?.asistio ?? false,
-        deuda,
-      }
-    })
-    if (registros.some(r => !Number.isFinite(r.deuda) || r.deuda < 0)) {
-      setError('Las deudas deben ser números válidos mayores o iguales a 0.')
-      return
-    }
     setSaving(true)
-    setError(null)
+    setError('')
     try {
-      await batchSaveAsistencia(registros)
+      const email = getFirebaseAuth().currentUser?.email ?? ''
+      await batchSaveRegistros(ninos.map(nino => ({
+        ninoId: nino.id,
+        sabadoId,
+        vino: rows[nino.id]?.vino ?? false,
+        pago: rows[nino.id]?.pago ?? false,
+        registradoPor: email,
+      })))
       setSaved(true)
+      window.setTimeout(() => setSaved(false), 2000)
     } catch (err) {
       console.error('Failed to save attendance:', err)
       setError('No se pudo guardar la asistencia.')
@@ -119,119 +92,66 @@ export default function SabadoDetailPage({ params }: Props) {
     }
   }
 
-  async function handleDelete() {
-    if (!confirm('¿Eliminar este sábado? Se perderán los registros de asistencia.')) return
-    setError(null)
-    try {
-      await deleteSabado(sabadoId)
-      router.push(`/grupo/${grupoId}`)
-    } catch (err) {
-      console.error('Failed to delete sabado:', err)
-      setError('No se pudo eliminar el sábado.')
-    }
+  if (loading) {
+    return (
+      <PageFade>
+        <div className="space-y-3">
+          <div className="h-20 bg-slate-100 rounded-xl animate-pulse" />
+          {[0, 1, 2, 3].map(i => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse mb-2" />)}
+        </div>
+      </PageFade>
+    )
   }
 
-  const asistentes = Object.values(rows).filter(r => r.asistio).length
-  const pctAsistencia = janijim.length > 0 ? Math.round((asistentes / janijim.length) * 100) : 0
-  const totalDeuda = Object.values(rows).reduce((sum, r) => {
-    const deuda = r.deuda.trim() ? Number(r.deuda) : 0
-    return Number.isFinite(deuda) ? sum + deuda : sum
-  }, 0)
-
-  if (loading) return <p className="text-slate-500 text-sm p-4">Cargando...</p>
-  if (!sabado) return <p className="text-red-500 text-sm p-4">Sábado no encontrado.</p>
-
   return (
-    <div className="p-4 space-y-4">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => router.push(`/grupo/${grupoId}`)}
-          className="text-slate-500 hover:text-slate-900"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div className="flex-1">
-          <h2 className="text-xl font-bold text-slate-900">{sabado.fecha}</h2>
-          {sabado.observacion && (
-            <p className="text-sm text-slate-500">{sabado.observacion}</p>
-          )}
-        </div>
-        <button onClick={handleDelete} className="text-red-400 hover:text-red-600">
-          <Trash2 size={18} />
-        </button>
-      </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+    <PageFade>
+      <div className="space-y-4">
+        <Link href={`/grupo/${grupoId}`} className="inline-flex items-center gap-1 text-sm text-slate-500">
+          <ArrowLeft size={16} /> Volver
+        </Link>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-2">
         <Card>
-          <CardContent className="p-3 text-center">
-            <p className="text-lg font-bold">{asistentes}/{janijim.length}</p>
-            <p className="text-xs text-slate-500 flex items-center justify-center gap-1">
-              <Users size={11} /> Asistentes
-            </p>
+          <CardContent className="p-4">
+            <p className="text-lg font-bold text-slate-900">{sabado ? new Date(`${sabado.fecha}T00:00:00`).toLocaleDateString('es-UY') : 'Sábado'}</p>
+            <p className="text-sm text-slate-500">{asistentes}/{ninos.length} vinieron · {pagos} pagaron</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-3 text-center">
-            <p className="text-lg font-bold">{pctAsistencia}%</p>
-            <p className="text-xs text-slate-500 flex items-center justify-center gap-1">
-              <Percent size={11} /> Asistencia
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3 text-center">
-            <p className="text-lg font-bold">${totalDeuda}</p>
-            <p className="text-xs text-slate-500 flex items-center justify-center gap-1">
-              <DollarSign size={11} /> Deuda
-            </p>
-          </CardContent>
-        </Card>
-      </div>
 
-      {/* Attendance table */}
-      <div className="bg-white border rounded-lg overflow-hidden">
-        <div className="grid grid-cols-[1fr_auto_auto] text-xs font-semibold text-slate-500 px-4 py-2 border-b bg-slate-50">
-          <span>Janij</span>
-          <span className="w-16 text-center">Asistió</span>
-          <span className="w-20 text-center">Deuda $</span>
-        </div>
-        {janijim.map(j => (
-          <div
-            key={j.id}
-            className="grid grid-cols-[1fr_auto_auto] items-center px-4 py-3 border-b last:border-b-0"
-          >
-            <div>
-              <p className="text-sm font-medium text-slate-900">{j.apellido}, {j.nombre}</p>
-              {j.escuela && <p className="text-xs text-slate-400">{j.escuela}</p>}
-            </div>
-            <div className="w-16 flex justify-center">
-              <Checkbox
-                checked={rows[j.id]?.asistio ?? false}
-                onCheckedChange={() => toggleAsistio(j.id)}
-              />
-            </div>
-            <div className="w-20">
-              <Input
-                type="number"
-                min="0"
-                className="h-8 text-sm text-center"
-                value={rows[j.id]?.deuda ?? ''}
-                onChange={e => setDeuda(j.id, e.target.value)}
-                placeholder="0"
-              />
-            </div>
+        <div className="rounded-xl border bg-white overflow-hidden">
+          <div className="grid grid-cols-[1fr_72px_72px] gap-2 px-3 py-2 text-xs font-semibold uppercase text-slate-500 bg-slate-50">
+            <span>Janij</span>
+            <span>Vino</span>
+            <span>Pagó</span>
           </div>
-        ))}
-      </div>
+          {ninos.map(nino => (
+            <div key={nino.id} className="grid grid-cols-[1fr_72px_72px] items-center gap-2 px-3 py-3 border-t transition-colors duration-100 hover:bg-slate-50">
+              <div>
+                <p className="font-medium text-slate-900">{nino.apellido}, {nino.nombre}</p>
+                {nino.escuela && <p className="text-xs text-slate-400">{nino.escuela}</p>}
+              </div>
+              <input
+                type="checkbox"
+                checked={rows[nino.id]?.vino ?? false}
+                onChange={e => updateRow(nino.id, { vino: e.target.checked })}
+                className="size-5 transition-transform duration-100 checked:scale-110"
+              />
+              <input
+                type="checkbox"
+                checked={rows[nino.id]?.pago ?? false}
+                disabled={!rows[nino.id]?.vino}
+                onChange={e => updateRow(nino.id, { pago: e.target.checked })}
+                className="size-5 transition-transform duration-100 checked:scale-110 disabled:opacity-30"
+              />
+            </div>
+          ))}
+        </div>
 
-      {/* Save button */}
-      <Button onClick={handleSave} disabled={saving} className="w-full">
-        {saving ? 'Guardando...' : saved ? '✓ Guardado' : 'Guardar asistencia'}
-        {!saving && !saved && <Save size={16} className="ml-2" />}
-      </Button>
-    </div>
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <Button onClick={handleSave} disabled={saving} className={`w-full transition-all duration-200 ${saved ? 'bg-green-600 text-white' : ''}`}>
+          <Save size={16} />
+          {saving ? 'Guardando...' : saved ? '¡Guardado!' : 'Guardar asistencia'}
+        </Button>
+      </div>
+    </PageFade>
   )
 }

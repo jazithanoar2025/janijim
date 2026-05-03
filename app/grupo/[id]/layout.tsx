@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from 'react'
 import { AuthGuard } from '@/components/auth/AuthGuard'
 import { AdminBottomNav } from '@/components/layout/AdminBottomNav'
-import { getSabadosByGrupo, getJanijimByGrupo, getAsistenciaByGrupo } from '@/lib/firestore'
+import { getAllSabados, getNinosByGrupo, getRegistrosByNinos, getAppConfig } from '@/lib/firestore'
 import { computeAlerts } from '@/lib/alerts'
 
 interface AdminLayoutProps {
@@ -17,18 +17,13 @@ export default function AdminLayout({ children, params }: AdminLayoutProps) {
 
   useEffect(() => {
     let cancelled = false
-    setAlertCount(0)
-    Promise.all([
-      getSabadosByGrupo(id),
-      getJanijimByGrupo(id),
-      getAsistenciaByGrupo(id),
-    ]).then(([sabados, janijim, asistencia]) => {
+    Promise.all([getAllSabados(), getNinosByGrupo(id), getAppConfig()])
+      .then(async ([sabados, ninos, config]) => {
+      const registros = await getRegistrosByNinos(ninos.map(n => n.id))
       if (!cancelled) {
-        setAlertCount(computeAlerts(sabados, janijim, asistencia).length)
+        setAlertCount(computeAlerts(sabados, ninos, registros, config.umbralFidelidadAlerta, config.añoActivo).length)
       }
-    }).catch(err => {
-      console.error('Failed to load alert data:', err)
-    })
+    }).catch(err => console.error('Failed to load alert data:', err))
     return () => { cancelled = true }
   }, [id])
 

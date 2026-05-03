@@ -1,193 +1,105 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { getSabadosByGrupo, getJanijimByGrupo, addSabado } from '@/lib/firestore'
-import type { Sabado, Janij } from '@/lib/types'
+import Link from 'next/link'
+import { use, useEffect, useMemo, useState } from 'react'
+import { CalendarDays, Percent, Users } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { CalendarDays, Users, Plus, ChevronRight } from 'lucide-react'
+import { PageFade } from '@/components/ui/page-fade'
+import { getAllSabados, getAppConfig, getNinosByGrupo, getRegistrosByNinos } from '@/lib/firestore'
+import { attendanceRate, countAttendanceForSabado, filterSabadosByYear, getYears } from '@/lib/metrics'
+import type { Nino, Registro, Sabado } from '@/lib/types'
 
 interface Props {
   params: Promise<{ id: string }>
 }
 
-export default function GrupoPage({ params }: Props) {
+export default function GrupoHomePage({ params }: Props) {
   const { id } = use(params)
-  const router = useRouter()
-
-  const [sabados, setSabados] = useState<Sabado[]>([])
-  const [janijim, setJanijim] = useState<Janij[]>([])
   const [loading, setLoading] = useState(true)
-
-  const [open, setOpen] = useState(false)
-  const [fecha, setFecha] = useState('')
-  const [monto, setMonto] = useState('')
-  const [observacion, setObservacion] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [sabados, setSabados] = useState<Sabado[]>([])
+  const [ninos, setNinos] = useState<Nino[]>([])
+  const [registros, setRegistros] = useState<Registro[]>([])
+  const [year, setYear] = useState(new Date().getFullYear())
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    setError(null)
-    Promise.all([getSabadosByGrupo(id), getJanijimByGrupo(id)])
-      .then(([sabs, jans]) => {
+    Promise.all([getAllSabados(), getNinosByGrupo(id), getAppConfig()])
+      .then(async ([sabadosData, ninosData, config]) => {
         if (cancelled) return
-        setSabados(sabs)
-        setJanijim(jans)
+        const registrosData = await getRegistrosByNinos(ninosData.map(n => n.id))
+        if (cancelled) return
+        setSabados(sabadosData)
+        setNinos(ninosData)
+        setRegistros(registrosData)
+        setYear(config.añoActivo)
+        setLoading(false)
       })
       .catch(err => {
-        console.error('Failed to load group:', err)
-        if (!cancelled) setError('No se pudo cargar el grupo.')
-      })
-      .finally(() => {
+        console.error('Failed to load group home:', err)
         if (!cancelled) setLoading(false)
       })
     return () => { cancelled = true }
   }, [id])
 
-  async function handleCreate() {
-    if (!fecha || !monto) return
-    const parsedMonto = Number(monto)
-    if (!Number.isFinite(parsedMonto) || parsedMonto < 0) {
-      setError('El monto debe ser un número válido mayor o igual a 0.')
-      return
-    }
-    setSaving(true)
-    setError(null)
-    try {
-      await addSabado({
-        fecha,
-        monto: parsedMonto,
-        ...(observacion.trim() && { observacion: observacion.trim() }),
-        grupoId: id,
-      })
-      const updated = await getSabadosByGrupo(id)
-      setSabados(updated)
-      setFecha('')
-      setMonto('')
-      setObservacion('')
-      setOpen(false)
-    } catch (err) {
-      console.error('Failed to create sabado:', err)
-      setError('No se pudo crear el sábado.')
-    } finally {
-      setSaving(false)
-    }
+  const activeNinos = useMemo(() => ninos.filter(n => n.activo), [ninos])
+  const activeNinoIds = useMemo(() => new Set(activeNinos.map(n => n.id)), [activeNinos])
+  const sabadosYear = useMemo(() => filterSabadosByYear(sabados, year), [sabados, year])
+  const years = useMemo(() => getYears(sabados, year), [sabados, year])
+  const promedio = attendanceRate(new Set(sabadosYear.map(s => s.id)), registros.filter(r => activeNinoIds.has(r.ninoId)), activeNinos.length)
+
+  if (loading) {
+    return (
+      <PageFade>
+        <div className="space-y-4">
+          <div className="h-20 bg-slate-100 rounded-xl animate-pulse" />
+          <div className="h-20 bg-slate-100 rounded-xl animate-pulse" />
+          {[0, 1, 2, 3].map(i => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse mb-2" />)}
+        </div>
+      </PageFade>
+    )
   }
 
-  if (loading) return <p className="text-slate-500 text-sm p-4">Cargando...</p>
-
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-slate-900">Mi Grupo</h2>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger render={<Button size="sm" />}>
-            <Plus size={16} className="mr-1" /> Nuevo Sábado
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Nuevo Sábado</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3 pt-2">
-              <div>
-                <Label htmlFor="fecha">Fecha</Label>
-                <Input
-                  id="fecha"
-                  type="date"
-                  value={fecha}
-                  onChange={e => setFecha(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="monto">Monto ($)</Label>
-                <Input
-                  id="monto"
-                  type="number"
-                  min="0"
-                  value={monto}
-                  onChange={e => setMonto(e.target.value)}
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <Label htmlFor="obs">Observación (opcional)</Label>
-                <Input
-                  id="obs"
-                  value={observacion}
-                  onChange={e => setObservacion(e.target.value)}
-                  placeholder="Tema del encuentro..."
-                />
-              </div>
-              <Button
-                onClick={handleCreate}
-                disabled={saving || !fecha || !monto}
-                className="w-full"
-              >
-                {saving ? 'Guardando...' : 'Crear Sábado'}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+    <PageFade>
+      <div className="space-y-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">Inicio</h2>
+            <p className="text-sm text-slate-500">Sábados institucionales de la kvutza</p>
+          </div>
+          <select value={year} onChange={e => setYear(Number(e.target.value))} className="h-8 rounded-lg border bg-white px-2 text-sm">
+            {years.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
 
-      {/* Stats row */}
-      <div className="grid grid-cols-2 gap-3">
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <Users size={20} className="text-slate-500" />
-            <div>
-              <p className="text-2xl font-bold">{janijim.length}</p>
-              <p className="text-xs text-slate-500">Janijim</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <CalendarDays size={20} className="text-slate-500" />
-            <div>
-              <p className="text-2xl font-bold">{sabados.length}</p>
-              <p className="text-xs text-slate-500">Sábados</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+        <div className="grid grid-cols-3 gap-2">
+          <Card><CardContent className="p-3"><Users size={18} className="text-slate-500" /><p className="text-xl font-bold">{activeNinos.length}</p><p className="text-xs text-slate-500">Activos</p></CardContent></Card>
+          <Card><CardContent className="p-3"><CalendarDays size={18} className="text-slate-500" /><p className="text-xl font-bold">{sabadosYear.length}</p><p className="text-xs text-slate-500">Sábados</p></CardContent></Card>
+          <Card><CardContent className="p-3"><Percent size={18} className="text-slate-500" /><p className="text-xl font-bold">{promedio}%</p><p className="text-xs text-slate-500">Promedio</p></CardContent></Card>
+        </div>
 
-      {/* Sábados list */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-slate-700">Sábados</h3>
-        {sabados.length === 0 && (
-          <p className="text-sm text-slate-400">No hay sábados registrados.</p>
-        )}
-        {sabados.map(s => (
-          <button
-            key={s.id}
-            onClick={() => router.push(`/grupo/${id}/sabado/${s.id}`)}
-            className="w-full flex items-center justify-between bg-white border rounded-lg p-3 text-left hover:bg-slate-50 transition-colors"
-          >
-            <div>
-              <p className="font-medium text-slate-900">{s.fecha}</p>
-              {s.observacion && <p className="text-xs text-slate-500">{s.observacion}</p>}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-600">${s.monto}</span>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
-          </button>
-        ))}
+        <div className="space-y-2">
+          {sabadosYear.map(sabado => (
+            <Link
+              key={sabado.id}
+              href={`/grupo/${id}/sabado/${sabado.id}`}
+              className="block rounded-xl border bg-white p-4 transition-colors duration-100 hover:bg-slate-50"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-slate-900">{new Date(`${sabado.fecha}T00:00:00`).toLocaleDateString('es-UY')}</p>
+                  <p className="text-xs text-slate-500">${sabado.monto}</p>
+                </div>
+                <p className="text-sm text-slate-600">
+                  {countAttendanceForSabado(sabado.id, activeNinoIds, registros)}/{activeNinos.length} vinieron
+                </p>
+              </div>
+            </Link>
+          ))}
+          {sabadosYear.length === 0 && <p className="text-sm text-slate-400">No hay sábados cargados para {year}.</p>}
+        </div>
       </div>
-    </div>
+    </PageFade>
   )
 }

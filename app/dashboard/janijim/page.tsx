@@ -1,101 +1,66 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
-import { getAllJanijim, getGrupos } from '@/lib/firestore'
-import type { Janij } from '@/lib/types'
+import { useEffect, useMemo, useState } from 'react'
 import { Input } from '@/components/ui/input'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { PageFade } from '@/components/ui/page-fade'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { getAllNinos, getGrupos } from '@/lib/firestore'
+import type { Nino } from '@/lib/types'
 
-interface JanijRow extends Janij {
+interface Row extends Nino {
   grupoNombre: string
 }
 
 export default function JanijimPage() {
-  const [rows, setRows] = useState<JanijRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
+  const [query, setQuery] = useState('')
+  const [onlyActive, setOnlyActive] = useState(true)
+  const [rows, setRows] = useState<Row[]>([])
 
   useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    Promise.all([getAllJanijim(), getGrupos()])
-      .then(([janijim, grupos]) => {
-        if (cancelled) return
-        const grupoMap = new Map<string, string>(grupos.map(g => [g.id, g.nombre]))
-        setRows(
-          janijim.map(j => ({ ...j, grupoNombre: grupoMap.get(j.grupoId) ?? j.grupoId }))
-        )
-        setLoading(false)
+    Promise.all([getAllNinos(), getGrupos()])
+      .then(([ninos, grupos]) => {
+        const grupoMap = new Map(grupos.map(g => [g.id, g.nombre]))
+        setRows(ninos.map(n => ({ ...n, grupoNombre: grupoMap.get(n.grupoId) ?? n.grupoId })))
       })
-      .catch(err => {
-        console.error('Failed to load janijim:', err)
-        if (!cancelled) setLoading(false)
-      })
-    return () => { cancelled = true }
+      .finally(() => setLoading(false))
   }, [])
 
-  const filtered = useMemo(() => {
-    if (!search) return rows
-    const q = search.toLowerCase()
-    return rows.filter(
-      j =>
-        j.nombre.toLowerCase().includes(q) ||
-        j.apellido.toLowerCase().includes(q) ||
-        j.grupoNombre.toLowerCase().includes(q)
-    )
-  }, [rows, search])
+  const filtered = useMemo(() => rows.filter(row => {
+    const text = `${row.nombre} ${row.apellido} ${row.grupoNombre} ${row.escuela ?? ''}`.toLowerCase()
+    return text.includes(query.toLowerCase()) && (!onlyActive || row.activo)
+  }), [rows, query, onlyActive])
 
-  if (loading) return <p className="text-slate-500 text-sm">Cargando...</p>
+  if (loading) return <PageFade>{[0, 1, 2, 3].map(i => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse mb-2" />)}</PageFade>
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-bold text-slate-900">Janijim</h2>
-
-      <Input
-        placeholder="Buscar por nombre o grupo..."
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        className="max-w-sm"
-      />
-
-      <p className="text-xs text-slate-500">{filtered.length} janijim</p>
-
-      <div className="bg-white border rounded-lg overflow-hidden">
+    <PageFade>
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">Janijim</h2>
+          <p className="text-xs text-slate-500">{filtered.length} janijim</p>
+        </div>
+        <div className="flex flex-col md:flex-row gap-2">
+          <Input placeholder="Buscar..." value={query} onChange={e => setQuery(e.target.value)} />
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input type="checkbox" checked={onlyActive} onChange={e => setOnlyActive(e.target.checked)} />
+            Solo activos
+          </label>
+        </div>
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Grupo</TableHead>
-              <TableHead>Escuela</TableHead>
-            </TableRow>
-          </TableHeader>
+          <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>Kvutza</TableHead><TableHead>Escuela</TableHead><TableHead>Estado</TableHead></TableRow></TableHeader>
           <TableBody>
-            {filtered.map(j => (
-              <TableRow key={j.id}>
-                <TableCell className="font-medium">
-                  {j.nombre} {j.apellido}
-                </TableCell>
-                <TableCell className="text-slate-600">{j.grupoNombre}</TableCell>
-                <TableCell className="text-slate-600">{j.escuela ?? '—'}</TableCell>
+            {filtered.map(row => (
+              <TableRow key={row.id} className="transition-colors duration-100 hover:bg-slate-50">
+                <TableCell>{row.nombre} {row.apellido}</TableCell>
+                <TableCell>{row.grupoNombre}</TableCell>
+                <TableCell>{row.escuela ?? '-'}</TableCell>
+                <TableCell>{row.activo ? 'Activo' : 'Inactivo'}</TableCell>
               </TableRow>
             ))}
-            {filtered.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={3} className="text-center text-slate-400">
-                  Sin resultados
-                </TableCell>
-              </TableRow>
-            )}
           </TableBody>
         </Table>
       </div>
-    </div>
+    </PageFade>
   )
 }
