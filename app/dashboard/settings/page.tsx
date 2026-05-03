@@ -13,6 +13,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [añoActivo, setAñoActivo] = useState('')
+  const [nuevoAño, setNuevoAño] = useState('')
   const [umbral, setUmbral] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -20,6 +21,7 @@ export default function SettingsPage() {
     getAppConfig()
       .then(cfg => {
         setAñoActivo(String(cfg.añoActivo))
+        setNuevoAño(String(cfg.añoActivo + 1))
         setUmbral(String(cfg.umbralFidelidadAlerta))
         setLoading(false)
       })
@@ -57,6 +59,34 @@ export default function SettingsPage() {
     } catch (err) {
       console.error('Failed to save config:', err)
       setError('No se pudo guardar la configuración.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function createNewYear() {
+    const parsedAño = Number(nuevoAño)
+    const parsedUmbral = Number(umbral)
+    if (!Number.isInteger(parsedAño) || parsedAño < 2000 || parsedAño > 2100) {
+      setError('Revisá el año nuevo antes de continuar.')
+      return
+    }
+    if (!confirm(`¿Crear el año ${parsedAño} como año activo? No se borra el histórico anterior.`)) return
+    setSaving(true)
+    setSaved(false)
+    setError(null)
+    try {
+      await setAppConfig({
+        añoActivo: parsedAño,
+        umbralFidelidadAlerta: Number.isFinite(parsedUmbral) ? parsedUmbral : 60,
+      })
+      setAñoActivo(String(parsedAño))
+      setNuevoAño(String(parsedAño + 1))
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (err) {
+      console.error('Failed to create year:', err)
+      setError('No se pudo crear el nuevo año.')
     } finally {
       setSaving(false)
     }
@@ -107,6 +137,31 @@ export default function SettingsPage() {
             {saving ? 'Guardando...' : saved ? '¡Guardado!' : 'Guardar cambios'}
           </Button>
           {error && <p className="text-sm text-red-600">{error}</p>}
+        </CardContent>
+      </Card>
+
+      <Card className="max-w-md">
+        <CardContent className="p-4 space-y-4">
+          <div>
+            <Label htmlFor="nuevoAño">Crear nuevo año activo</Label>
+            <Input
+              id="nuevoAño"
+              type="number"
+              value={nuevoAño}
+              onChange={e => setNuevoAño(e.target.value)}
+            />
+            <p className="mt-2 text-xs text-slate-500">
+              Esto reinicia la operación visual al año elegido, pero conserva sábados, registros y deudas de años anteriores para el histórico.
+            </p>
+          </div>
+          <Button
+            onClick={createNewYear}
+            disabled={saving || !nuevoAño}
+            variant="outline"
+            className="w-full transition-colors duration-150"
+          >
+            Crear año y activar
+          </Button>
         </CardContent>
       </Card>
     </div>

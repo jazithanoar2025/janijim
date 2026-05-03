@@ -39,20 +39,63 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'La kvutza no existe.' }, { status: 400 })
     }
 
-    const newUser = await auth.createUser({ email, password, displayName: nombre })
+    let newUser
+    try {
+      newUser = await auth.getUserByEmail(email)
+      await auth.updateUser(newUser.uid, { password, displayName: nombre, disabled: false })
+    } catch (err: unknown) {
+      if ((err as { code?: string }).code !== 'auth/user-not-found') throw err
+      newUser = await auth.createUser({ email, password, displayName: nombre })
+    }
 
     await db.doc(`usuarios/${newUser.uid}`).set({
       email,
       nombre,
       rol: 'admin',
       grupoId,
-    })
+    }, { merge: true })
 
     await db.doc(`grupos/${grupoId}`).update({ adminUid: newUser.uid })
 
     return NextResponse.json({ success: true, uid: newUser.uid })
   } catch (err) {
     console.error('Create user error:', err)
+    return NextResponse.json({ error: String(err) }, { status: 500 })
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const session = await requireSuperadmin(req)
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado.' }, { status: 403 })
+    }
+
+    const { uid, password, disabled, nombre, grupoId } = await req.json() as {
+      uid: string
+      password?: string
+      disabled?: boolean
+      nombre?: string
+      grupoId?: string
+    }
+
+    if (!uid) return NextResponse.json({ error: 'Falta uid.' }, { status: 400 })
+    const { auth, db } = session
+    const updateAuth: { password?: string; disabled?: boolean; displayName?: string } = {}
+    if (password) updateAuth.password = password
+    if (typeof disabled === 'boolean') updateAuth.disabled = disabled
+    if (nombre) updateAuth.displayName = nombre
+    if (Object.keys(updateAuth).length > 0) await auth.updateUser(uid, updateAuth)
+
+    const updateProfile: Record<string, string | boolean> = {}
+    if (nombre) updateProfile.nombre = nombre
+    if (grupoId) updateProfile.grupoId = grupoId
+    if (Object.keys(updateProfile).length > 0) await db.doc(`usuarios/${uid}`).set(updateProfile, { merge: true })
+    if (grupoId) await db.doc(`grupos/${grupoId}`).set({ adminUid: uid }, { merge: true })
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error('Update user error:', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }

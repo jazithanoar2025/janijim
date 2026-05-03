@@ -62,6 +62,27 @@ export default function UsuariosPage() {
     }
   }
 
+  async function resetPassword(uid: string) {
+    const password = window.prompt('Nueva contraseña temporal')
+    if (!password) return
+    setError('')
+    try {
+      const token = await getFirebaseAuth().currentUser?.getIdToken()
+      if (!token) throw new Error('Sesión expirada. Volvé a iniciar sesión.')
+      const res = await fetch('/api/usuarios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ uid, password, disabled: false }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'No se pudo resetear la contraseña.')
+      setSaved(true)
+      window.setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo resetear la contraseña.')
+    }
+  }
+
   if (loading) return <PageFade>{[0, 1, 2, 3].map(i => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse mb-2" />)}</PageFade>
 
   return (
@@ -89,8 +110,15 @@ export default function UsuariosPage() {
           <h3 className="font-semibold text-slate-900">Admins</h3>
           {admins.map(u => (
             <div key={u.uid} className="rounded-xl border bg-white p-4 transition-colors duration-100 hover:bg-slate-50">
-              <p className="font-semibold text-slate-900">{u.nombre}</p>
-              <p className="text-sm text-slate-500">{u.email.replace('@jazit.local', '')} · {u.grupoId ? grupoMap.get(u.grupoId) ?? u.grupoId : '-'}</p>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-slate-900">{u.nombre}</p>
+                  <p className="text-sm text-slate-500">{u.email.replace('@jazit.local', '')} · {u.grupoId ? grupoMap.get(u.grupoId) ?? u.grupoId : '-'}</p>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => resetPassword(u.uid)} className="transition-colors duration-150">
+                  Resetear acceso
+                </Button>
+              </div>
             </div>
           ))}
         </section>

@@ -1,7 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { ArrowRight, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -85,11 +86,16 @@ export default function SabadosAdminPage() {
   return (
     <PageFade>
       <div className="space-y-5">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-slate-900">Sábados</h2>
-          <select value={year} onChange={e => setYear(Number(e.target.value))} className="h-8 rounded-lg border bg-white px-2 text-sm">
-            {years.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
+        <div className="rounded-2xl bg-slate-950 p-5 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-emerald-200">Agenda institucional</p>
+              <h2 className="text-2xl font-bold">Sábados</h2>
+            </div>
+            <select value={year} onChange={e => setYear(Number(e.target.value))} className="h-9 rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white">
+              {years.map(y => <option key={y} value={y} className="text-slate-900">{y}</option>)}
+            </select>
+          </div>
         </div>
         <Card>
           <CardContent className="p-4 grid md:grid-cols-[1fr_120px_1fr_auto] gap-3 items-end">
@@ -107,13 +113,18 @@ export default function SabadosAdminPage() {
             const vinieron = countAttendanceForSabado(sabado.id, ninoIds, registros)
             const pagaron = countPaidForSabado(sabado.id, ninoIds, registros)
             return (
-              <div key={sabado.id} className="rounded-xl border bg-white p-4 transition-colors duration-100 hover:bg-slate-50">
+              <div key={sabado.id} className="rounded-2xl border bg-white p-4 shadow-sm transition-colors duration-100 hover:bg-slate-50">
                 <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-slate-900">{new Date(`${sabado.fecha}T00:00:00`).toLocaleDateString('es-UY')}</p>
+                  <Link href={`/dashboard/sabados/${sabado.id}`} className="min-w-0 flex-1">
+                    <p className="font-semibold text-slate-950">{new Date(`${sabado.fecha}T00:00:00`).toLocaleDateString('es-UY')}</p>
                     <p className="text-sm text-slate-500">${sabado.monto} · {vinieron} vinieron · {pagaron} pagaron</p>
+                  </Link>
+                  <div className="flex items-center gap-1">
+                    <Link href={`/dashboard/sabados/${sabado.id}`} className="inline-flex h-7 items-center gap-1 rounded-lg border px-2.5 text-[0.8rem] font-medium transition-colors duration-150 hover:bg-slate-50">
+                      Ver <ArrowRight size={14} />
+                    </Link>
+                    <Button size="icon-sm" variant="destructive" onClick={() => handleDelete(sabado)} className="transition-colors duration-150"><Trash2 size={14} /></Button>
                   </div>
-                  <Button size="icon-sm" variant="destructive" onClick={() => handleDelete(sabado)} className="transition-colors duration-150"><Trash2 size={14} /></Button>
                 </div>
               </div>
             )

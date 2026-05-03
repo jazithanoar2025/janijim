@@ -20,6 +20,26 @@ export function attendanceRate(sabadoIds: Set<string>, registros: Registro[], to
   return Math.round((attended / (sabadoIds.size * totalNinos)) * 100)
 }
 
+export function ninoAttendancePercent(ninoId: string, sabados: Sabado[], registros: Registro[]): number {
+  if (sabados.length === 0) return 0
+  const sabadoIds = new Set(sabados.map(s => s.id))
+  const attended = registros.filter(r => r.ninoId === ninoId && r.vino && sabadoIds.has(r.sabadoId)).length
+  return Math.round((attended / sabados.length) * 100)
+}
+
+export function averageJanijFidelity(ninos: Nino[], sabados: Sabado[], registros: Registro[]): number {
+  const active = ninos.filter(isActiveNino)
+  if (active.length === 0 || sabados.length === 0) return 0
+  const total = active.reduce((sum, nino) => sum + ninoAttendancePercent(nino.id, sabados, registros), 0)
+  return Math.round(total / active.length)
+}
+
+export function averageAttendanceCountPerSabado(sabados: Sabado[], ninoIds: Set<string>, registros: Registro[]): number {
+  if (sabados.length === 0) return 0
+  const total = sabados.reduce((sum, sabado) => sum + countAttendanceForSabado(sabado.id, ninoIds, registros), 0)
+  return Math.round((total / sabados.length) * 10) / 10
+}
+
 export function countAttendanceForSabado(sabadoId: string, ninoIds: Set<string>, registros: Registro[]): number {
   return registros.filter(r => r.sabadoId === sabadoId && r.vino && ninoIds.has(r.ninoId)).length
 }
@@ -41,4 +61,20 @@ export function computeDebtRows(ninos: Nino[], sabados: Sabado[], registros: Reg
     })
     .filter(row => row.deuda > 0)
     .sort((a, b) => b.deuda - a.deuda)
+}
+
+export function groupBySchool(ninos: Nino[], sabados: Sabado[], registros: Registro[]) {
+  const buckets = new Map<string, Nino[]>()
+  for (const nino of ninos.filter(isActiveNino)) {
+    const escuela = nino.escuela?.trim() || 'Sin escuela'
+    buckets.set(escuela, [...(buckets.get(escuela) ?? []), nino])
+  }
+
+  return Array.from(buckets.entries())
+    .map(([escuela, escuelaNinos]) => ({
+      escuela,
+      janijim: escuelaNinos.length,
+      fidelidad: averageJanijFidelity(escuelaNinos, sabados, registros),
+    }))
+    .sort((a, b) => b.janijim - a.janijim)
 }

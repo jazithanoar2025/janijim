@@ -59,6 +59,12 @@ export async function getRegistrosBySabadoAndNinos(sabadoId: string, ninoIds: st
   return registros
 }
 
+export async function getRegistrosBySabado(sabadoId: string): Promise<Registro[]> {
+  const q = query(collection(getDb(), 'registros'), where('sabadoId', '==', sabadoId))
+  const snap = await getDocs(q)
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }) as Registro)
+}
+
 export async function getRegistrosByNinos(ninoIds: string[]): Promise<Registro[]> {
   if (ninoIds.length === 0) return []
   const registros: Registro[] = []
