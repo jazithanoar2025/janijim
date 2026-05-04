@@ -5,8 +5,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <AuthGuard requiredRole="superadmin">
       <SuperadminSidebar />
-      <main className="md:ml-56 pt-14 md:pt-0 pb-16 md:pb-0 min-h-screen bg-slate-50">
-        <div className="p-4 md:p-6">
+      <main className="md:ml-56 pt-16 md:pt-0 pb-6 min-h-screen bg-slate-50">
+        <div className="p-3 md:p-6">
           {children}
         </div>
       </main>

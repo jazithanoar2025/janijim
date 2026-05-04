@@ -14,7 +14,11 @@ import {
   Calendar,
   DollarSign,
   UserCog,
+  Bell,
+  Menu,
+  X,
 } from 'lucide-react'
+import { useState } from 'react'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -22,6 +26,7 @@ const navItems = [
   { href: '/dashboard/janijim', label: 'Janijim', icon: Users },
   { href: '/dashboard/sabados', label: 'Sábados', icon: Calendar },
   { href: '/dashboard/deudores', label: 'Deudores', icon: DollarSign },
+  { href: '/dashboard/alertas', label: 'Alertas', icon: Bell },
   { href: '/dashboard/stats', label: 'Estadísticas', icon: BarChart3 },
   { href: '/dashboard/usuarios', label: 'Responsables', icon: UserCog },
   { href: '/dashboard/settings', label: 'Ajustes', icon: Settings },
@@ -30,6 +35,7 @@ const navItems = [
 export function SuperadminSidebar() {
   const pathname = usePathname()
   const { logout, usuario } = useAuth()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const isActive = (href: string) => pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
 
@@ -67,27 +73,38 @@ export function SuperadminSidebar() {
         </Button>
       </aside>
 
-      <header className="md:hidden flex items-center justify-between px-4 py-3 bg-slate-900 text-white fixed top-0 left-0 right-0 z-10">
-        <h1 className="font-bold">Jazit Hanoar</h1>
-        <Button variant="ghost" size="sm" onClick={logout} className="text-slate-400 transition-colors duration-150">
-          <LogOut size={16} />
+      <header className="md:hidden flex items-center justify-between px-4 py-3 bg-slate-900 text-white fixed top-0 left-0 right-0 z-20">
+        <div>
+          <h1 className="font-bold">Jazit Hanoar</h1>
+          <p className="text-xs text-slate-400">{usuario?.nombre}</p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => setMenuOpen(v => !v)} className="text-slate-200 transition-colors duration-150">
+          {menuOpen ? <X size={18} /> : <Menu size={18} />}
         </Button>
       </header>
 
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t flex z-10 overflow-x-auto">
-        {navItems.map(({ href, label, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={`min-w-16 flex-1 flex flex-col items-center py-2 text-xs gap-1 transition-colors duration-150 ${
-              isActive(href) ? 'text-slate-900' : 'text-slate-400'
-            }`}
-          >
-            <Icon size={20} />
-            <span className="truncate">{label}</span>
-          </Link>
-        ))}
-      </nav>
+      {menuOpen && (
+        <div className="md:hidden fixed inset-x-3 top-16 z-20 rounded-2xl border bg-white p-3 shadow-xl">
+          <nav className="grid grid-cols-2 gap-2">
+            {navItems.map(({ href, label, icon: Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setMenuOpen(false)}
+                className={`flex items-center gap-2 rounded-xl px-3 py-3 text-sm transition-colors duration-150 ${
+                  isActive(href) ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <Icon size={17} />
+                <span>{label}</span>
+              </Link>
+            ))}
+            <button onClick={logout} className="flex items-center gap-2 rounded-xl px-3 py-3 text-left text-sm text-slate-600 hover:bg-slate-50">
+              <LogOut size={17} /> Salir
+            </button>
+          </nav>
+        </div>
+      )}
     </>
   )
 }

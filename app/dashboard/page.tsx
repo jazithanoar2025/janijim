@@ -45,7 +45,7 @@ export default function DashboardPage() {
   const activeNinos = useMemo(() => ninos.filter(isActiveNino), [ninos])
   const activeIds = useMemo(() => new Set(activeNinos.map(n => n.id)), [activeNinos])
   const sabadosYear = useMemo(() => filterSabadosByYear(sabados, year), [sabados, year])
-  const fidelidadPromedio = averageJanijFidelity(activeNinos, sabadosYear, registros)
+  const fidelidadPromedio = averageJanijFidelity(ninos, sabadosYear, registros)
   const promedioNinos = averageAttendanceCountPerSabado(sabadosYear, activeIds, registros)
   const chartData = sabadosYear.slice().reverse().map(sabado => ({
     fecha: sabado.fecha.slice(5),

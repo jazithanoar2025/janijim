@@ -64,6 +64,50 @@ export async function POST(req: NextRequest) {
   }
 }
 
+export async function GET(req: NextRequest) {
+  try {
+    const session = await requireSuperadmin(req)
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado.' }, { status: 403 })
+    }
+
+    const { auth, db } = session
+    const [usuariosSnap, groupsSnap] = await Promise.all([
+      db.collection('usuarios').get(),
+      db.collection('grupos').get(),
+    ])
+    const usuarios = await Promise.all(usuariosSnap.docs.map(async docSnap => {
+      const data = docSnap.data()
+      try {
+        const authUser = await auth.getUser(docSnap.id)
+        return {
+          uid: docSnap.id,
+          ...data,
+          authStatus: 'ok',
+          disabled: authUser.disabled,
+          lastSignInTime: authUser.metadata.lastSignInTime ?? null,
+        }
+      } catch (err: unknown) {
+        return {
+          uid: docSnap.id,
+          ...data,
+          authStatus: (err as { code?: string }).code === 'auth/user-not-found' ? 'missing-auth' : 'error',
+          disabled: null,
+          lastSignInTime: null,
+        }
+      }
+    }))
+
+    return NextResponse.json({
+      usuarios,
+      grupos: groupsSnap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })),
+    })
+  } catch (err) {
+    console.error('List users error:', err)
+    return NextResponse.json({ error: String(err) }, { status: 500 })
+  }
+}
+
 export async function PATCH(req: NextRequest) {
   try {
     const session = await requireSuperadmin(req)

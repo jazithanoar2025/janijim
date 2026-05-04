@@ -51,12 +51,12 @@ export default function StatsPage() {
     activos: activeNinos.length,
     sabados: sabadosYear.length,
     promedioNinos: averageAttendanceCountPerSabado(sabadosYear, activeIds, registros),
-    fidelidad: averageJanijFidelity(activeNinos, sabadosYear, registros),
+    fidelidad: averageJanijFidelity(ninos, sabadosYear, registros),
   }
 
   const byKvutza = grupos.map(grupo => {
-    const grupoNinos = activeNinos.filter(n => n.grupoId === grupo.id)
-    const ids = new Set(grupoNinos.map(n => n.id))
+    const grupoNinos = ninos.filter(n => n.grupoId === grupo.id)
+    const ids = new Set(grupoNinos.filter(isActiveNino).map(n => n.id))
     return {
       nombre: grupo.nombre,
       janijim: grupoNinos.length,
@@ -65,7 +65,7 @@ export default function StatsPage() {
     }
   }).sort((a, b) => b.janijim - a.janijim)
 
-  const byEscuela = groupBySchool(activeNinos, sabadosYear, registros)
+  const byEscuela = groupBySchool(ninos, sabadosYear, registros)
   const trend = sabadosYear.slice().reverse().map(sabado => ({
     fecha: sabado.fecha.slice(5),
     asistentes: countAttendanceForSabado(sabado.id, activeIds, registros),
@@ -75,7 +75,7 @@ export default function StatsPage() {
     return {
       year: y,
       promedio: averageAttendanceCountPerSabado(sabadosY, activeIds, registros),
-      fidelidad: averageJanijFidelity(activeNinos, sabadosY, registros),
+      fidelidad: averageJanijFidelity(ninos, sabadosY, registros),
       sabados: sabadosY.length,
     }
   })

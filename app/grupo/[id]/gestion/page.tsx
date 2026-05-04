@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageFade } from '@/components/ui/page-fade'
+import { getFirebaseAuth } from '@/lib/firebase'
 import { addNino, deleteNino, getNinosByGrupo, updateNino } from '@/lib/firestore'
 import { isActiveNino } from '@/lib/metrics'
 import type { Nino } from '@/lib/types'
@@ -73,6 +74,7 @@ export default function GestionPage() {
         observaciones: form.observaciones.trim(),
         activo: editing?.activo ?? true,
         creadoEn: editing?.creadoEn ?? new Date().toISOString(),
+        creadoPor: editing?.creadoPor ?? getFirebaseAuth().currentUser?.email ?? '',
       }
       if (editing) await updateNino(editing.id, data)
       else await addNino(data)

@@ -24,6 +24,7 @@ export interface Nino {
   observaciones?: string
   activo: boolean
   creadoEn?: string
+  creadoPor?: string
 }
 
 export interface Sabado {

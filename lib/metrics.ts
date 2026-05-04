@@ -27,11 +27,14 @@ export function ninoAttendancePercent(ninoId: string, sabados: Sabado[], registr
   return Math.round((attended / sabados.length) * 100)
 }
 
+export function isNuevoNino(nino: Nino): boolean {
+  return Boolean(nino.creadoPor?.trim())
+}
+
 export function averageJanijFidelity(ninos: Nino[], sabados: Sabado[], registros: Registro[]): number {
-  const active = ninos.filter(isActiveNino)
-  if (active.length === 0 || sabados.length === 0) return 0
-  const total = active.reduce((sum, nino) => sum + ninoAttendancePercent(nino.id, sabados, registros), 0)
-  return Math.round(total / active.length)
+  if (ninos.length === 0 || sabados.length === 0) return 0
+  const total = ninos.reduce((sum, nino) => sum + (isActiveNino(nino) ? ninoAttendancePercent(nino.id, sabados, registros) : 0), 0)
+  return Math.round(total / ninos.length)
 }
 
 export function averageAttendanceCountPerSabado(sabados: Sabado[], ninoIds: Set<string>, registros: Registro[]): number {
@@ -65,7 +68,7 @@ export function computeDebtRows(ninos: Nino[], sabados: Sabado[], registros: Reg
 
 export function groupBySchool(ninos: Nino[], sabados: Sabado[], registros: Registro[]) {
   const buckets = new Map<string, Nino[]>()
-  for (const nino of ninos.filter(isActiveNino)) {
+  for (const nino of ninos) {
     const escuela = nino.escuela?.trim() || 'Sin escuela'
     buckets.set(escuela, [...(buckets.get(escuela) ?? []), nino])
   }

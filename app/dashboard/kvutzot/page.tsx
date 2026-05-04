@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight, Phone } from 'lucide-react'
 import { PageFade } from '@/components/ui/page-fade'
 import { getAllNinos, getGrupos } from '@/lib/firestore'
-import { isActiveNino } from '@/lib/metrics'
+import { isActiveNino, isNuevoNino } from '@/lib/metrics'
 import type { Grupo, Nino } from '@/lib/types'
 
 interface Row {
@@ -76,6 +76,7 @@ export default function KvutzotPage() {
                         <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${isActiveNino(nino) ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                           {isActiveNino(nino) ? 'Activo' : 'Inactivo'}
                         </span>
+                        {isNuevoNino(nino) && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">Nuevo</span>}
                       </div>
                       {nino.telefono && <p className="mt-2 inline-flex items-center gap-1 text-xs text-slate-500"><Phone size={12} />{nino.telefono}</p>}
                     </div>
