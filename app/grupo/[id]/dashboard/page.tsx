@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Card, CardContent } from '@/components/ui/card'
 import { PageFade } from '@/components/ui/page-fade'
 import { getAllSabados, getAppConfig, getNinosByGrupo, getRegistrosByNinos } from '@/lib/firestore'
@@ -41,6 +41,9 @@ export default function GrupoDashboardPage() {
     const pagaron = countPaidForSabado(sabado.id, ninoIds, registros)
     return {
       fecha: sabado.fecha.slice(5),
+      vinieron,
+      pagaron,
+      deben: Math.max(vinieron - pagaron, 0),
       asistencia: ninos.length ? Math.round((vinieron / ninos.length) * 100) : 0,
       pagos: vinieron ? Math.round((pagaron / vinieron) * 100) : 0,
     }
@@ -59,28 +62,30 @@ export default function GrupoDashboardPage() {
         </div>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm font-medium text-slate-700 mb-4">Asistencia por sábado</p>
+            <p className="text-sm font-medium text-slate-700 mb-4">Janijim presentes por sábado</p>
             <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={chartData}>
+              <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Line type="monotone" dataKey="asistencia" stroke="#2563eb" strokeWidth={2} dot={false} />
-              </LineChart>
+                <Bar dataKey="vinieron" name="Vinieron" fill="#2563eb" radius={[3, 3, 0, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm font-medium text-slate-700 mb-4">Pagos entre quienes vinieron</p>
+            <p className="text-sm font-medium text-slate-700 mb-4">Pagos y deudas por sábado</p>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Bar dataKey="pagos" fill="#16a34a" radius={[3, 3, 0, 0]} />
+                <Legend />
+                <Bar dataKey="pagaron" name="Pagaron" fill="#16a34a" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="deben" name="Deben" fill="#dc2626" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

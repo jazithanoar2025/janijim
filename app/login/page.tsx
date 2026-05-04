@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth'
 import { getFirebaseAuth } from '@/lib/firebase'
@@ -85,12 +86,22 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#3f7198] via-[#123d67] to-[#1f5d9a] p-4">
+    <main
+      className="flex min-h-screen items-center justify-center bg-cover bg-center p-4"
+      style={{
+        backgroundImage: "linear-gradient(135deg, rgba(63, 113, 152, 0.78), rgba(18, 61, 103, 0.82), rgba(31, 93, 154, 0.76)), url('/login-flag-bg.jpg')",
+      }}
+    >
       <div className="w-full max-w-md space-y-9">
         <div className="text-center text-white">
-          <div className="mx-auto mb-5 flex size-20 items-center justify-center rounded-3xl border border-white/25 bg-white/15 text-2xl font-black shadow-xl shadow-slate-950/20 backdrop-blur">
-            JH
-          </div>
+          <Image
+            src="/icon-192.png"
+            alt="Jazit Hanoar 75"
+            width={84}
+            height={84}
+            priority
+            className="mx-auto mb-5 rounded-3xl border border-white/25 shadow-xl shadow-slate-950/20"
+          />
           <h1 className="text-3xl font-extrabold leading-none tracking-normal">Jazit Hanoar</h1>
           <p className="mt-2 text-sm font-medium text-white/75">El gigante de Rivera <span className="mx-1">·</span> v8</p>
         </div>

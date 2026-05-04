@@ -16,14 +16,14 @@ export function filterSabadosByYear(sabados: Sabado[], year: number): Sabado[] {
 
 export function attendanceRate(sabadoIds: Set<string>, registros: Registro[], totalNinos: number): number {
   if (sabadoIds.size === 0 || totalNinos === 0) return 0
-  const attended = registros.filter(r => r.vino && sabadoIds.has(r.sabadoId)).length
+  const attended = new Set(registros.filter(r => r.vino && sabadoIds.has(r.sabadoId)).map(r => `${r.sabadoId}:${r.ninoId}`)).size
   return Math.round((attended / (sabadoIds.size * totalNinos)) * 100)
 }
 
 export function ninoAttendancePercent(ninoId: string, sabados: Sabado[], registros: Registro[]): number {
   if (sabados.length === 0) return 0
   const sabadoIds = new Set(sabados.map(s => s.id))
-  const attended = registros.filter(r => r.ninoId === ninoId && r.vino && sabadoIds.has(r.sabadoId)).length
+  const attended = new Set(registros.filter(r => r.ninoId === ninoId && r.vino && sabadoIds.has(r.sabadoId)).map(r => r.sabadoId)).size
   return Math.round((attended / sabados.length) * 100)
 }
 
@@ -51,11 +51,11 @@ export function averageAttendanceCountPerSabado(sabados: Sabado[], ninoIds: Set<
 }
 
 export function countAttendanceForSabado(sabadoId: string, ninoIds: Set<string>, registros: Registro[]): number {
-  return registros.filter(r => r.sabadoId === sabadoId && r.vino && ninoIds.has(r.ninoId)).length
+  return new Set(registros.filter(r => r.sabadoId === sabadoId && r.vino && ninoIds.has(r.ninoId)).map(r => r.ninoId)).size
 }
 
 export function countPaidForSabado(sabadoId: string, ninoIds: Set<string>, registros: Registro[]): number {
-  return registros.filter(r => r.sabadoId === sabadoId && r.vino && r.pago && ninoIds.has(r.ninoId)).length
+  return new Set(registros.filter(r => r.sabadoId === sabadoId && r.vino && r.pago && ninoIds.has(r.ninoId)).map(r => r.ninoId)).size
 }
 
 export function computeDebtRows(ninos: Nino[], sabados: Sabado[], registros: Registro[]) {
@@ -65,7 +65,10 @@ export function computeDebtRows(ninos: Nino[], sabados: Sabado[], registros: Reg
     .map(nino => {
       const sabadosDebe = registros
         .filter(r => r.ninoId === nino.id && r.vino && !r.pago && sabadoById.has(r.sabadoId))
-        .map(r => sabadoById.get(r.sabadoId)!)
+        .reduce<Sabado[]>((items, r) => {
+          if (!items.some(sabado => sabado.id === r.sabadoId)) items.push(sabadoById.get(r.sabadoId)!)
+          return items
+        }, [])
       const deuda = sabadosDebe.reduce((sum, sabado) => sum + (Number(sabado.monto) || 0), 0)
       return { nino, deuda, sabados: sabadosDebe }
     })
