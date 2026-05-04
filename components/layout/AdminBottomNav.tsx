@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Home, BarChart2, Users, DollarSign, Bell, LogOut } from 'lucide-react'
+import { Home, Users, Bell, LogOut } from 'lucide-react'
 
 interface AdminBottomNavProps {
   grupoId: string
@@ -19,9 +19,7 @@ export function AdminBottomNav({ grupoId, grupoNombre, alertCount = 0 }: AdminBo
 
   const navItems = [
     { href: `/grupo/${grupoId}`, label: 'Inicio', icon: Home },
-    { href: `/grupo/${grupoId}/dashboard`, label: 'Dashboard', icon: BarChart2 },
-    { href: `/grupo/${grupoId}/gestion`, label: 'Gestión', icon: Users },
-    { href: `/grupo/${grupoId}/deudas`, label: 'Deudas', icon: DollarSign },
+    { href: `/grupo/${grupoId}/janijim`, label: 'Janijim', icon: Users },
     {
       href: `/grupo/${grupoId}/alertas`,
       label: 'Alertas',
@@ -30,16 +28,11 @@ export function AdminBottomNav({ grupoId, grupoNombre, alertCount = 0 }: AdminBo
     },
   ]
 
-  const isActive = (href: string) => {
-    if (href === `/grupo/${grupoId}`) return pathname === href
-    return pathname.startsWith(href)
-  }
-
   return (
     <>
       <header className="flex items-center justify-between px-4 py-3 bg-slate-900 text-white fixed top-0 left-0 right-0 z-10">
         <div>
-          <h1 className="font-bold text-sm">{grupoNombre || 'Mi Kvutza'}</h1>
+          <h1 className="font-bold text-sm">{grupoNombre || 'Mi Grupo'}</h1>
           <p className="text-xs text-slate-400">{usuario?.nombre}</p>
         </div>
         <Button variant="ghost" size="sm" onClick={logout} className="text-slate-400 transition-colors duration-150">
@@ -53,7 +46,7 @@ export function AdminBottomNav({ grupoId, grupoNombre, alertCount = 0 }: AdminBo
             key={href}
             href={href}
             className={`flex-1 flex flex-col items-center py-2 text-xs gap-1 relative transition-colors duration-150 ${
-              isActive(href) ? 'text-slate-900' : 'text-slate-400'
+              pathname === href ? 'text-slate-900' : 'text-slate-400'
             }`}
           >
             <span className="relative">

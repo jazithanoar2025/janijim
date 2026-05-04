@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageFade } from '@/components/ui/page-fade'
+import { getFirebaseAuth } from '@/lib/firebase'
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
@@ -16,6 +17,7 @@ export default function SettingsPage() {
   const [nuevoAño, setNuevoAño] = useState('')
   const [umbral, setUmbral] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [schoolResult, setSchoolResult] = useState<string | null>(null)
 
   useEffect(() => {
     getAppConfig()
@@ -92,6 +94,28 @@ export default function SettingsPage() {
     }
   }
 
+  async function normalizeSchools() {
+    if (!confirm('¿Convertir escuelas ya cargadas al catálogo ANEP cuando haya una coincidencia clara?')) return
+    setSaving(true)
+    setError(null)
+    setSchoolResult(null)
+    try {
+      const token = await getFirebaseAuth().currentUser?.getIdToken()
+      const res = await fetch('/api/maintenance/normalize-schools', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error ?? 'No se pudo normalizar.')
+      setSchoolResult(`Escuelas normalizadas: ${body.matched}. Sin cambio: ${body.skipped}.`)
+    } catch (err) {
+      console.error('Failed to normalize schools:', err)
+      setError('No se pudieron normalizar las escuelas.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   if (loading) {
     return (
       <PageFade>
@@ -162,6 +186,26 @@ export default function SettingsPage() {
           >
             Crear año y activar
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="max-w-md">
+        <CardContent className="p-4 space-y-4">
+          <div>
+            <h3 className="font-semibold text-slate-900">Escuelas ANEP</h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Convierte escuelas escritas manualmente al valor oficial cuando la coincidencia es clara.
+            </p>
+          </div>
+          <Button
+            onClick={normalizeSchools}
+            disabled={saving}
+            variant="outline"
+            className="w-full transition-colors duration-150"
+          >
+            Normalizar escuelas cargadas
+          </Button>
+          {schoolResult && <p className="text-sm text-emerald-700">{schoolResult}</p>}
         </CardContent>
       </Card>
     </div>

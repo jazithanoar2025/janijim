@@ -42,25 +42,27 @@ export default function AlertasPage() {
       <div className="space-y-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Alertas</h2>
-          <p className="text-sm text-slate-500">Fidelidad por debajo del umbral configurado</p>
+          <p className="text-sm text-slate-500">Janijim que vienen faltando desde la última vez que asistieron</p>
         </div>
 
         {alerts.length === 0 && (
           <div className="rounded-xl border bg-white p-4 text-sm text-slate-500">
-            Todos los janijim superan el umbral de fidelidad
+            No hay janijim con faltas consecutivas. Los que tienen 0% quedan como inactivos y no aparecen acá.
           </div>
         )}
 
         <div className="space-y-2">
-          {alerts.map(({ nino, fidelidad, severity }) => (
+          {alerts.map(({ nino, faltasConsecutivas, ultimaAsistencia, severity }) => (
             <div key={nino.id} className="rounded-xl border bg-white p-4 transition-colors duration-100 hover:bg-slate-50">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="font-semibold text-slate-900">{nino.nombre} {nino.apellido}</p>
                   {nino.escuela && <p className="text-xs text-slate-400">{nino.escuela}</p>}
+                  {ultimaAsistencia && <p className="text-xs text-slate-500">Última asistencia: {new Date(`${ultimaAsistencia}T00:00:00`).toLocaleDateString('es-UY')}</p>}
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-slate-900">{fidelidad}%</p>
+                  <p className="font-bold text-slate-900">{faltasConsecutivas}</p>
+                  <p className="text-xs text-slate-500">faltas seguidas</p>
                   <Badge className={severity === 'critical' ? 'bg-red-500' : 'bg-yellow-500'}>
                     {severity === 'critical' ? 'Crítica' : 'Atención'}
                   </Badge>
