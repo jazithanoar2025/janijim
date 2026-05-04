@@ -114,55 +114,55 @@ service cloud.firestore {
     }
 
     match /usuarios/{uid} {
-      allow read: isSuperadmin() || (signedIn() && request.auth.uid == uid);
-      allow create, update: isSuperadmin() && validUsuario(request.resource.data);
-      allow delete: isSuperadmin();
+      allow read: if isSuperadmin() || (signedIn() && request.auth.uid == uid);
+      allow create, update: if isSuperadmin() && validUsuario(request.resource.data);
+      allow delete: if isSuperadmin();
     }
 
     match /grupos/{grupoId} {
-      allow read: hasProfile();
-      allow create, update: isSuperadmin() && validGrupo(request.resource.data);
-      allow delete: isSuperadmin();
+      allow read: if hasProfile();
+      allow create, update: if isSuperadmin() && validGrupo(request.resource.data);
+      allow delete: if isSuperadmin();
     }
 
     match /ninos/{ninoId} {
-      allow read: isSuperadmin() || isAdminFor(resource.data.grupoId);
-      allow create: validNino(request.resource.data) &&
+      allow read: if isSuperadmin() || isAdminFor(resource.data.grupoId);
+      allow create: if validNino(request.resource.data) &&
         (isSuperadmin() || isAdminFor(request.resource.data.grupoId));
-      allow update: validNino(request.resource.data) &&
+      allow update: if validNino(request.resource.data) &&
         request.resource.data.grupoId == resource.data.grupoId &&
         (isSuperadmin() || isAdminFor(resource.data.grupoId));
-      allow delete: isSuperadmin() || isAdminFor(resource.data.grupoId);
+      allow delete: if isSuperadmin() || isAdminFor(resource.data.grupoId);
     }
 
     match /sabados/{sabadoId} {
-      allow read: hasProfile();
-      allow create, update: isSuperadmin() && validSabado(request.resource.data);
-      allow delete: isSuperadmin();
+      allow read: if hasProfile();
+      allow create, update: if isSuperadmin() && validSabado(request.resource.data);
+      allow delete: if isSuperadmin();
     }
 
     match /registros/{registroId} {
-      allow read: canReadOrWriteNino(resource.data.ninoId);
-      allow create: validRegistro(request.resource.data) &&
+      allow read: if canReadOrWriteNino(resource.data.ninoId);
+      allow create: if validRegistro(request.resource.data) &&
         registroId == request.resource.data.sabadoId + '_' + request.resource.data.ninoId &&
         exists(/databases/$(database)/documents/sabados/$(request.resource.data.sabadoId)) &&
         canReadOrWriteNino(request.resource.data.ninoId);
-      allow update: validRegistro(request.resource.data) &&
+      allow update: if validRegistro(request.resource.data) &&
         registroId == request.resource.data.sabadoId + '_' + request.resource.data.ninoId &&
         request.resource.data.sabadoId == resource.data.sabadoId &&
         request.resource.data.ninoId == resource.data.ninoId &&
         exists(/databases/$(database)/documents/sabados/$(request.resource.data.sabadoId)) &&
         canReadOrWriteNino(request.resource.data.ninoId);
-      allow delete: canReadOrWriteNino(resource.data.ninoId);
+      allow delete: if canReadOrWriteNino(resource.data.ninoId);
     }
 
     match /config/{configId} {
-      allow read: hasProfile();
-      allow write: isSuperadmin() && configId == 'app' && validAppConfig(request.resource.data);
+      allow read: if hasProfile();
+      allow write: if isSuperadmin() && configId == 'app' && validAppConfig(request.resource.data);
     }
 
     match /historico/{year} {
-      allow read, write: isSuperadmin();
+      allow read, write: if isSuperadmin();
     }
 
     match /{document=**} {
