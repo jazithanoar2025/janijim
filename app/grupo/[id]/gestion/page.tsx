@@ -80,12 +80,14 @@ export default function GestionPage() {
         telefono: form.telefono.trim(),
         observaciones: form.observaciones.trim(),
         activo: editing?.activo ?? true,
-        creadoEn: editing?.creadoEn ?? new Date().toISOString(),
-        creadoPor: editing?.creadoPor ?? getFirebaseAuth().currentUser?.email ?? '',
-        creadoPorRol: editing?.creadoPorRol ?? usuario?.rol ?? 'admin',
       }
       if (editing) await updateNino(editing.id, data)
-      else await addNino(data)
+      else await addNino({
+        ...data,
+        creadoEn: new Date().toISOString(),
+        creadoPor: getFirebaseAuth().currentUser?.email ?? '',
+        creadoPorRol: usuario?.rol ?? 'admin',
+      })
       await load()
       setOpen(false)
       setSaved(true)

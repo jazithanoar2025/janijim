@@ -36,7 +36,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    if (process.env.NODE_ENV === 'production' && process.env.ENABLE_BOOTSTRAP !== 'true') {
+    if (process.env.NODE_ENV === 'production') {
       return NextResponse.json({ error: 'No disponible.' }, { status: 404 })
     }
 

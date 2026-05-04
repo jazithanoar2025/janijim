@@ -14,6 +14,22 @@ async function requireSuperadmin(req: NextRequest) {
   return { auth, db, uid: decoded.uid }
 }
 
+function isStrongPassword(password: string): boolean {
+  return password.length >= 10 &&
+    /[a-z]/.test(password) &&
+    /[A-Z]/.test(password) &&
+    /\d/.test(password) &&
+    /[^A-Za-z0-9]/.test(password)
+}
+
+function passwordError(password?: string) {
+  if (!password) return null
+  if (isStrongPassword(password)) return null
+  return NextResponse.json({
+    error: 'La contraseña debe tener al menos 10 caracteres, mayúscula, minúscula, número y símbolo.',
+  }, { status: 400 })
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await requireSuperadmin(req)
@@ -31,6 +47,8 @@ export async function POST(req: NextRequest) {
     if (!username || !nombre || !password || !grupoId) {
       return NextResponse.json({ error: 'Faltan campos requeridos.' }, { status: 400 })
     }
+    const weakPassword = passwordError(password)
+    if (weakPassword) return weakPassword
 
     const email = username.includes('@') ? username : `${username}@jazit.local`
     const { auth, db } = session
@@ -124,6 +142,9 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (!uid) return NextResponse.json({ error: 'Falta uid.' }, { status: 400 })
+    const weakPassword = passwordError(password)
+    if (weakPassword) return weakPassword
+
     const { auth, db } = session
     if (grupoId) {
       const groupSnap = await db.doc(`grupos/${grupoId}`).get()

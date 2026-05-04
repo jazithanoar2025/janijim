@@ -50,6 +50,10 @@ service cloud.firestore {
       return !(field in data) || data[field] in ['superadmin', 'admin'];
     }
 
+    function authEmail() {
+      return request.auth.token.email;
+    }
+
     function isNonNegativeNumber(value) {
       return value is number && value >= 0 && value < 1000000;
     }
@@ -90,6 +94,26 @@ service cloud.firestore {
         isOptionalBool(data, 'activo');
     }
 
+    function validNinoCreate(data) {
+      return validNino(data) &&
+        data.creadoPor == authEmail() &&
+        data.creadoPorRol == profile().rol;
+    }
+
+    function validNinoUpdate() {
+      return validNino(request.resource.data) &&
+        request.resource.data.grupoId == resource.data.grupoId &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'nombre',
+          'apellido',
+          'escuela',
+          'escuelaId',
+          'telefono',
+          'observaciones',
+          'activo',
+        ]);
+    }
+
     function validSabado(data) {
       return data.keys().hasOnly(['fecha', 'monto', 'observacion', 'creadoEn', 'creadoPor']) &&
         isIsoDate(data.fecha) &&
@@ -107,6 +131,10 @@ service cloud.firestore {
         data.pago is bool &&
         isOptionalString(data, 'fechaHora', 40) &&
         isOptionalString(data, 'registradoPor', 254);
+    }
+
+    function validRegistroWrite(data) {
+      return validRegistro(data) && data.registradoPor == authEmail();
     }
 
     function validAppConfig(data) {
@@ -133,10 +161,9 @@ service cloud.firestore {
 
     match /ninos/{ninoId} {
       allow read: if isSuperadmin() || isAdminFor(resource.data.grupoId);
-      allow create: if validNino(request.resource.data) &&
+      allow create: if validNinoCreate(request.resource.data) &&
         (isSuperadmin() || isAdminFor(request.resource.data.grupoId));
-      allow update: if validNino(request.resource.data) &&
-        request.resource.data.grupoId == resource.data.grupoId &&
+      allow update: if validNinoUpdate() &&
         (isSuperadmin() || isAdminFor(resource.data.grupoId));
       allow delete: if isSuperadmin() || isAdminFor(resource.data.grupoId);
     }
@@ -149,11 +176,11 @@ service cloud.firestore {
 
     match /registros/{registroId} {
       allow read: if canReadOrWriteNino(resource.data.ninoId);
-      allow create: if validRegistro(request.resource.data) &&
+      allow create: if validRegistroWrite(request.resource.data) &&
         registroId == request.resource.data.sabadoId + '_' + request.resource.data.ninoId &&
         exists(/databases/$(database)/documents/sabados/$(request.resource.data.sabadoId)) &&
         canReadOrWriteNino(request.resource.data.ninoId);
-      allow update: if validRegistro(request.resource.data) &&
+      allow update: if validRegistroWrite(request.resource.data) &&
         registroId == request.resource.data.sabadoId + '_' + request.resource.data.ninoId &&
         request.resource.data.sabadoId == resource.data.sabadoId &&
         request.resource.data.ninoId == resource.data.ninoId &&
