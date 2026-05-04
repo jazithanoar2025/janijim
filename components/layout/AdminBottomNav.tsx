@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Home, Users, Bell, LogOut } from 'lucide-react'
+import { Home, BarChart2, Users, DollarSign, Bell, LogOut } from 'lucide-react'
 
 interface AdminBottomNavProps {
   grupoId: string
@@ -19,7 +19,9 @@ export function AdminBottomNav({ grupoId, grupoNombre, alertCount = 0 }: AdminBo
 
   const navItems = [
     { href: `/grupo/${grupoId}`, label: 'Inicio', icon: Home },
+    { href: `/grupo/${grupoId}/dashboard`, label: 'Dashboard', icon: BarChart2 },
     { href: `/grupo/${grupoId}/janijim`, label: 'Janijim', icon: Users },
+    { href: `/grupo/${grupoId}/deudas`, label: 'Deudas', icon: DollarSign },
     {
       href: `/grupo/${grupoId}/alertas`,
       label: 'Alertas',
@@ -27,6 +29,12 @@ export function AdminBottomNav({ grupoId, grupoNombre, alertCount = 0 }: AdminBo
       badge: alertCount > 0 ? alertCount : undefined,
     },
   ]
+
+  const isActive = (href: string) => {
+    if (href === `/grupo/${grupoId}`) return pathname === href
+    if (href === `/grupo/${grupoId}/janijim`) return pathname === href || pathname === `/grupo/${grupoId}/gestion`
+    return pathname.startsWith(href)
+  }
 
   return (
     <>
@@ -46,7 +54,7 @@ export function AdminBottomNav({ grupoId, grupoNombre, alertCount = 0 }: AdminBo
             key={href}
             href={href}
             className={`flex-1 flex flex-col items-center py-2 text-xs gap-1 relative transition-colors duration-150 ${
-              pathname === href ? 'text-slate-900' : 'text-slate-400'
+              isActive(href) ? 'text-slate-900' : 'text-slate-400'
             }`}
           >
             <span className="relative">
