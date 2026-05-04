@@ -12,6 +12,7 @@ import {
   countAttendanceForSabado,
   filterSabadosByYear,
   groupBySchool,
+  isActiveNino,
   ninoAttendancePercent,
 } from '@/lib/metrics'
 import type { Grupo, Nino, Registro, Sabado } from '@/lib/types'
@@ -44,18 +45,19 @@ export default function StatsPage() {
 
   const years = useMemo(() => Array.from(new Set([...sabados.map(s => Number(s.fecha.slice(0, 4))).filter(Number.isFinite), currentYear])).sort((a, b) => b - a), [sabados, currentYear])
   const sabadosYear = useMemo(() => filterSabadosByYear(sabados, year), [sabados, year])
-  const activeNinos = useMemo(() => ninos.filter(nino => ninoAttendancePercent(nino.id, sabadosYear, registros) > 0), [ninos, sabadosYear, registros])
-  const ninoIds = useMemo(() => new Set(ninos.map(n => n.id)), [ninos])
+  const operationalNinos = useMemo(() => ninos.filter(isActiveNino), [ninos])
+  const activeNinos = useMemo(() => operationalNinos.filter(nino => ninoAttendancePercent(nino.id, sabadosYear, registros) > 0), [operationalNinos, sabadosYear, registros])
+  const ninoIds = useMemo(() => new Set(operationalNinos.map(n => n.id)), [operationalNinos])
 
   const general = {
     activos: activeNinos.length,
     sabados: sabadosYear.length,
     promedioNinos: averageAttendanceCountPerSabado(sabadosYear, ninoIds, registros),
-    fidelidad: averageJanijFidelity(ninos, sabadosYear, registros),
+    fidelidad: averageJanijFidelity(operationalNinos, sabadosYear, registros),
   }
 
   const byKvutza = grupos.map(grupo => {
-    const grupoNinos = ninos.filter(n => n.grupoId === grupo.id)
+    const grupoNinos = operationalNinos.filter(n => n.grupoId === grupo.id)
     const ids = new Set(grupoNinos.map(n => n.id))
     return {
       nombre: grupo.nombre,
@@ -65,7 +67,7 @@ export default function StatsPage() {
     }
   }).sort((a, b) => b.janijim - a.janijim)
 
-  const byEscuela = groupBySchool(ninos, sabadosYear, registros)
+  const byEscuela = groupBySchool(operationalNinos, sabadosYear, registros)
   const trend = sabadosYear.slice().reverse().map(sabado => ({
     fecha: sabado.fecha.slice(5),
     asistentes: countAttendanceForSabado(sabado.id, ninoIds, registros),
@@ -75,7 +77,7 @@ export default function StatsPage() {
     return {
       year: y,
       promedio: averageAttendanceCountPerSabado(sabadosY, ninoIds, registros),
-      fidelidad: averageJanijFidelity(ninos, sabadosY, registros),
+      fidelidad: averageJanijFidelity(operationalNinos, sabadosY, registros),
       sabados: sabadosY.length,
     }
   })

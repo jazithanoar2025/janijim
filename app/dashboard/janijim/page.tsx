@@ -58,7 +58,7 @@ export default function JanijimPage() {
     .filter(row => {
       const text = `${row.nombre} ${row.apellido} ${row.grupoNombre} ${row.escuela ?? ''}`.toLowerCase()
       return text.includes(query.toLowerCase()) &&
-        (!onlyActive || row.asistencia > 0) &&
+        (!onlyActive || onlyNew || row.asistencia > 0) &&
         (!onlyNew || isNuevoNino(row, responsableEmails)) &&
         (grupoId === 'todos' || row.grupoId === grupoId)
     })

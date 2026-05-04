@@ -53,6 +53,7 @@ export default function DeudoresPage() {
   }, [rows, grupoMap])
   const filteredRows = useMemo(() => rows.filter(row => grupoId === 'todos' || row.nino.grupoId === grupoId), [rows, grupoId])
   const totalDeuda = useMemo(() => filteredRows.reduce((sum, row) => sum + row.deuda, 0), [filteredRows])
+  const selectedGroupTotal = useMemo(() => grupoId === 'todos' ? groupTotals : groupTotals.filter(group => group.grupoId === grupoId), [groupTotals, grupoId])
 
   if (loading) return <PageFade>{[0, 1, 2, 3].map(i => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse mb-2" />)}</PageFade>
 
@@ -89,15 +90,15 @@ export default function DeudoresPage() {
           </div>
           <div className="rounded-2xl border bg-white p-4 shadow-sm">
             <p className="text-sm text-slate-500">Kvutzot con deuda</p>
-            <p className="mt-1 text-2xl font-bold text-slate-950">{groupTotals.length}</p>
+            <p className="mt-1 text-2xl font-bold text-slate-950">{selectedGroupTotal.length}</p>
           </div>
         </div>
 
-        {groupTotals.length > 0 && (
+        {selectedGroupTotal.length > 0 && (
           <div className="rounded-2xl border bg-white p-4 shadow-sm">
             <h3 className="flex items-center gap-2 font-semibold text-slate-950"><UsersRound size={17} /> Deuda por kvutza</h3>
             <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-              {groupTotals.map(group => (
+              {selectedGroupTotal.map(group => (
                 <button
                   key={group.grupoId}
                   onClick={() => setGrupoId(group.grupoId)}
