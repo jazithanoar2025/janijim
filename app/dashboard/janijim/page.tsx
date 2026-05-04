@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { PageFade } from '@/components/ui/page-fade'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { getAllNinos, getAllRegistros, getAllSabados, getAppConfig, getGrupos } from '@/lib/firestore'
+import { getAllNinos, getAllRegistros, getAllSabados, getAppConfig, getGrupos, getUsuarios } from '@/lib/firestore'
 import { filterSabadosByYear, isInactiveByAttendance, isNuevoNino, ninoAttendancePercent } from '@/lib/metrics'
 import type { Nino, Registro, Sabado } from '@/lib/types'
 
@@ -27,15 +27,17 @@ export default function JanijimPage() {
   const [sabados, setSabados] = useState<Sabado[]>([])
   const [registros, setRegistros] = useState<Registro[]>([])
   const [grupoMap, setGrupoMap] = useState(new Map<string, string>())
+  const [responsableEmails, setResponsableEmails] = useState(new Set<string>())
   const [error, setError] = useState('')
 
   useEffect(() => {
-    Promise.all([getAllNinos(), getGrupos(), getAllSabados(), getAllRegistros(), getAppConfig()])
-      .then(([ninosData, grupos, sabadosData, registrosData, config]) => {
+    Promise.all([getAllNinos(), getGrupos(), getAllSabados(), getAllRegistros(), getAppConfig(), getUsuarios()])
+      .then(([ninosData, grupos, sabadosData, registrosData, config, usuarios]) => {
         setNinos(ninosData)
         setSabados(sabadosData)
         setRegistros(registrosData)
         setGrupoMap(new Map(grupos.map(g => [g.id, g.nombre])))
+        setResponsableEmails(new Set(usuarios.filter(u => u.rol === 'admin').map(u => u.email.trim().toLowerCase())))
         setYear(config.añoActivo)
       })
       .catch(err => {
@@ -57,7 +59,7 @@ export default function JanijimPage() {
       const text = `${row.nombre} ${row.apellido} ${row.grupoNombre} ${row.escuela ?? ''}`.toLowerCase()
       return text.includes(query.toLowerCase()) &&
         (!onlyActive || row.asistencia > 0) &&
-        (!onlyNew || isNuevoNino(row)) &&
+        (!onlyNew || isNuevoNino(row, responsableEmails)) &&
         (grupoId === 'todos' || row.grupoId === grupoId)
     })
     .sort((a, b) => {
@@ -65,7 +67,7 @@ export default function JanijimPage() {
       if (sortMode === 'asistencia-asc') return a.asistencia - b.asistencia || a.apellido.localeCompare(b.apellido)
       if (sortMode === 'grupo') return a.grupoNombre.localeCompare(b.grupoNombre) || b.asistencia - a.asistencia
       return a.apellido.localeCompare(b.apellido) || a.nombre.localeCompare(b.nombre)
-    }), [rows, query, onlyActive, onlyNew, grupoId, sortMode])
+    }), [rows, query, onlyActive, onlyNew, grupoId, sortMode, responsableEmails])
 
   if (loading) return <PageFade>{[0, 1, 2, 3].map(i => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse mb-2" />)}</PageFade>
 
@@ -121,7 +123,7 @@ export default function JanijimPage() {
                   <div className="flex flex-wrap gap-1">
                     <span>{isInactiveByAttendance(row, sabadosYear, registros) ? 'Inactivo' : 'Activo'}</span>
                     {row.activo === false && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">Oculto</span>}
-                    {isNuevoNino(row) && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">Nuevo</span>}
+                    {isNuevoNino(row, responsableEmails) && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">Nuevo</span>}
                   </div>
                 </TableCell>
               </TableRow>

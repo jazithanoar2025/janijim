@@ -27,13 +27,11 @@ export function ninoAttendancePercent(ninoId: string, sabados: Sabado[], registr
   return Math.round((attended / sabados.length) * 100)
 }
 
-export function isNuevoNino(nino: Nino): boolean {
+export function isNuevoNino(nino: Nino, responsableEmails?: Set<string>): boolean {
   const creator = nino.creadoPor?.trim().toLowerCase()
   if (nino.creadoPorRol) return nino.creadoPorRol === 'admin'
   if (!creator) return false
-  return !creator.includes('admin@jazit.local') &&
-    !creator.includes('superadmin') &&
-    !creator.includes('superadmin@jazit.local')
+  return responsableEmails?.has(creator) ?? false
 }
 
 export function isInactiveByAttendance(nino: Nino, sabados: Sabado[], registros: Registro[]): boolean {
