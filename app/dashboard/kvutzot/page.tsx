@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight, Phone } from 'lucide-react'
 import { PageFade } from '@/components/ui/page-fade'
 import { getAllNinos, getGrupos } from '@/lib/firestore'
-import { isActiveNino, isNuevoNino } from '@/lib/metrics'
+import { isNuevoNino } from '@/lib/metrics'
 import type { Grupo, Nino } from '@/lib/types'
 
 interface Row {
@@ -38,7 +38,7 @@ export default function KvutzotPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  const total = useMemo(() => rows.reduce((sum, row) => sum + row.janijim.filter(isActiveNino).length, 0), [rows])
+  const total = useMemo(() => rows.reduce((sum, row) => sum + row.janijim.length, 0), [rows])
 
   if (loading) return <PageFade>{[0, 1, 2, 3].map(i => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse mb-2" />)}</PageFade>
 
@@ -48,18 +48,17 @@ export default function KvutzotPage() {
         <div className="rounded-2xl bg-slate-950 p-5 text-white">
           <p className="text-sm text-emerald-200">Mapa de kvutzot</p>
           <h2 className="text-2xl font-bold">Kvutzot</h2>
-          <p className="text-sm text-slate-300">{total} janijim activos distribuidos en {rows.length} kvutzot</p>
+          <p className="text-sm text-slate-300">{total} janijim distribuidos en {rows.length} kvutzot</p>
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <div className="grid gap-4">
           {rows.map(({ grupo, janijim }) => {
-            const active = janijim.filter(isActiveNino)
             return (
               <section key={grupo.id} className="rounded-2xl border bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-lg font-bold text-slate-950">{grupo.nombre}</h3>
-                    <p className="text-sm text-slate-500">{active.length} activos · {janijim.length - active.length} inactivos</p>
+                    <p className="text-sm text-slate-500">{janijim.length} janijim cargados</p>
                   </div>
                   <Link href={`/grupo/${grupo.id}`} className="inline-flex h-8 items-center gap-1 rounded-lg border px-3 text-sm font-medium transition-colors duration-150 hover:bg-slate-50">
                     Abrir <ArrowRight size={15} />
@@ -67,14 +66,14 @@ export default function KvutzotPage() {
                 </div>
                 <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                   {janijim.map(nino => (
-                    <div key={nino.id} className={`rounded-xl border p-3 transition-colors duration-100 hover:bg-slate-50 ${!isActiveNino(nino) ? 'opacity-60' : ''}`}>
+                    <div key={nino.id} className={`rounded-xl border p-3 transition-colors duration-100 hover:bg-slate-50 ${nino.activo === false ? 'opacity-60' : ''}`}>
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className="font-medium text-slate-900">{nino.apellido}, {nino.nombre}</p>
                           <p className="text-xs text-slate-500">{nino.escuela || 'Sin escuela'}</p>
                         </div>
-                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${isActiveNino(nino) ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                          {isActiveNino(nino) ? 'Activo' : 'Inactivo'}
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${nino.activo === false ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-700'}`}>
+                          {nino.activo === false ? 'Oculto' : 'Operativo'}
                         </span>
                         {isNuevoNino(nino) && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">Nuevo</span>}
                       </div>

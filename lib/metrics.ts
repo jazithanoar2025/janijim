@@ -28,12 +28,21 @@ export function ninoAttendancePercent(ninoId: string, sabados: Sabado[], registr
 }
 
 export function isNuevoNino(nino: Nino): boolean {
-  return Boolean(nino.creadoPor?.trim())
+  const creator = nino.creadoPor?.trim().toLowerCase()
+  if (nino.creadoPorRol) return nino.creadoPorRol === 'admin'
+  if (!creator) return false
+  return !creator.includes('admin@jazit.local') &&
+    !creator.includes('superadmin') &&
+    !creator.includes('superadmin@jazit.local')
+}
+
+export function isInactiveByAttendance(nino: Nino, sabados: Sabado[], registros: Registro[]): boolean {
+  return ninoAttendancePercent(nino.id, sabados, registros) === 0
 }
 
 export function averageJanijFidelity(ninos: Nino[], sabados: Sabado[], registros: Registro[]): number {
   if (ninos.length === 0 || sabados.length === 0) return 0
-  const total = ninos.reduce((sum, nino) => sum + (isActiveNino(nino) ? ninoAttendancePercent(nino.id, sabados, registros) : 0), 0)
+  const total = ninos.reduce((sum, nino) => sum + ninoAttendancePercent(nino.id, sabados, registros), 0)
   return Math.round(total / ninos.length)
 }
 

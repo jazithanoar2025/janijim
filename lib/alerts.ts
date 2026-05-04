@@ -27,7 +27,7 @@ export function computeAlerts(
   const alerts: Alerta[] = []
   for (const nino of ninos) {
     const asistencias = vinoMap.get(nino.id) ?? 0
-    const fidelidad = nino.activo === false ? 0 : Math.round((asistencias / sabadosAnio.length) * 100)
+    const fidelidad = Math.round((asistencias / sabadosAnio.length) * 100)
     if (fidelidad < umbral) {
       alerts.push({
         nino,

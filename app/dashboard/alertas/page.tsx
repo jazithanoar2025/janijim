@@ -77,7 +77,8 @@ export default function AlertasGeneralesPage() {
                   <p className="mt-1 flex items-center gap-1 text-sm text-slate-500"><UsersRound size={14} /> {grupoNombre} · {nino.escuela || 'Sin escuela'}</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {isNuevoNino(nino) && <Badge className="bg-blue-500">Nuevo</Badge>}
-                    {nino.activo === false && <Badge className="bg-slate-500">Inactivo</Badge>}
+                    {fidelidad === 0 && <Badge className="bg-slate-500">Inactivo</Badge>}
+                    {nino.activo === false && <Badge className="bg-zinc-500">Oculto</Badge>}
                   </div>
                 </div>
                 <div className="text-right">

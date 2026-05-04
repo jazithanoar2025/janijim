@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageFade } from '@/components/ui/page-fade'
+import { useAuth } from '@/hooks/useAuth'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { addNino, deleteNino, getNinosByGrupo, updateNino } from '@/lib/firestore'
 import { escuelasUruguay, findEscuelaById, findEscuelaByLabel, formatEscuela } from '@/lib/escuelas'
@@ -19,6 +20,7 @@ const emptyForm = { nombre: '', apellido: '', escuela: '', telefono: '', observa
 
 export default function GestionPage() {
   const { id } = useParams<{ id: string }>()
+  const { usuario } = useAuth()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -80,6 +82,7 @@ export default function GestionPage() {
         activo: editing?.activo ?? true,
         creadoEn: editing?.creadoEn ?? new Date().toISOString(),
         creadoPor: editing?.creadoPor ?? getFirebaseAuth().currentUser?.email ?? '',
+        creadoPorRol: editing?.creadoPorRol ?? usuario?.rol ?? 'admin',
       }
       if (editing) await updateNino(editing.id, data)
       else await addNino(data)
@@ -171,10 +174,10 @@ export default function GestionPage() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="font-semibold text-slate-900">{nino.apellido}, {nino.nombre}</p>
-                    <p className="text-xs text-slate-500">{isActiveNino(nino) ? 'Activo' : 'Inactivo'}{nino.escuela ? ` · ${nino.escuela}` : ''}</p>
+                    <p className="text-xs text-slate-500">{isActiveNino(nino) ? 'En lista' : 'Oculto'}{nino.escuela ? ` · ${nino.escuela}` : ''}</p>
                   </div>
                   <div className="flex gap-1">
-                    <Button size="sm" variant="outline" onClick={() => toggleActivo(nino)} className="transition-colors duration-150">{isActiveNino(nino) ? 'Ocultar' : 'Activar'}</Button>
+                    <Button size="sm" variant="outline" onClick={() => toggleActivo(nino)} className="transition-colors duration-150">{isActiveNino(nino) ? 'Ocultar' : 'Mostrar'}</Button>
                     <Button size="icon-sm" variant="ghost" onClick={() => openEdit(nino)} className="transition-colors duration-150"><Edit2 size={14} /></Button>
                     <Button size="icon-sm" variant="destructive" onClick={() => handleDelete(nino)} className="transition-colors duration-150"><Trash2 size={14} /></Button>
                   </div>

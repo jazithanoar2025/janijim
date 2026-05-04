@@ -71,7 +71,7 @@ export default function GrupoHomePage() {
         </div>
 
         <div className="grid grid-cols-3 gap-2">
-          <Card><CardContent className="p-3"><Users size={18} className="text-slate-500" /><p className="text-xl font-bold">{activeNinos.length}</p><p className="text-xs text-slate-500">Activos</p></CardContent></Card>
+          <Card><CardContent className="p-3"><Users size={18} className="text-slate-500" /><p className="text-xl font-bold">{activeNinos.length}</p><p className="text-xs text-slate-500">En lista</p></CardContent></Card>
           <Card><CardContent className="p-3"><CalendarDays size={18} className="text-slate-500" /><p className="text-xl font-bold">{sabadosYear.length}</p><p className="text-xs text-slate-500">Sábados</p></CardContent></Card>
           <Card><CardContent className="p-3"><Percent size={18} className="text-slate-500" /><p className="text-xl font-bold">{promedio}%</p><p className="text-xs text-slate-500">Promedio</p></CardContent></Card>
         </div>

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { PageFade } from '@/components/ui/page-fade'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { getAllNinos, getAllRegistros, getAllSabados, getAppConfig, getGrupos } from '@/lib/firestore'
-import { filterSabadosByYear, isActiveNino, isNuevoNino, ninoAttendancePercent } from '@/lib/metrics'
+import { filterSabadosByYear, isInactiveByAttendance, isNuevoNino, ninoAttendancePercent } from '@/lib/metrics'
 import type { Nino, Registro, Sabado } from '@/lib/types'
 
 interface Row extends Nino {
@@ -49,14 +49,14 @@ export default function JanijimPage() {
   const rows = useMemo<Row[]>(() => ninos.map(nino => ({
     ...nino,
     grupoNombre: grupoMap.get(nino.grupoId) ?? nino.grupoId,
-    asistencia: isActiveNino(nino) ? ninoAttendancePercent(nino.id, sabadosYear, registros) : 0,
+    asistencia: ninoAttendancePercent(nino.id, sabadosYear, registros),
   })), [ninos, grupoMap, sabadosYear, registros])
 
   const filtered = useMemo(() => rows
     .filter(row => {
       const text = `${row.nombre} ${row.apellido} ${row.grupoNombre} ${row.escuela ?? ''}`.toLowerCase()
       return text.includes(query.toLowerCase()) &&
-        (!onlyActive || isActiveNino(row)) &&
+        (!onlyActive || row.asistencia > 0) &&
         (!onlyNew || isNuevoNino(row)) &&
         (grupoId === 'todos' || row.grupoId === grupoId)
     })
@@ -94,7 +94,7 @@ export default function JanijimPage() {
           </select>
           <label className="flex items-center gap-2 text-sm text-slate-600">
             <input type="checkbox" checked={onlyActive} onChange={e => setOnlyActive(e.target.checked)} />
-            Solo activos
+            Sólo con asistencia
           </label>
           <label className="flex items-center gap-2 text-sm text-slate-600">
             <input type="checkbox" checked={onlyNew} onChange={e => setOnlyNew(e.target.checked)} />
@@ -119,7 +119,8 @@ export default function JanijimPage() {
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
-                    <span>{isActiveNino(row) ? 'Activo' : 'Inactivo'}</span>
+                    <span>{isInactiveByAttendance(row, sabadosYear, registros) ? 'Inactivo' : 'Activo'}</span>
+                    {row.activo === false && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">Oculto</span>}
                     {isNuevoNino(row) && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">Nuevo</span>}
                   </div>
                 </TableCell>

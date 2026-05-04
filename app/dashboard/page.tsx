@@ -11,7 +11,7 @@ import {
   averageJanijFidelity,
   countAttendanceForSabado,
   filterSabadosByYear,
-  isActiveNino,
+  ninoAttendancePercent,
 } from '@/lib/metrics'
 import type { Grupo, Nino, Registro, Sabado } from '@/lib/types'
 
@@ -42,14 +42,14 @@ export default function DashboardPage() {
     return () => { cancelled = true }
   }, [])
 
-  const activeNinos = useMemo(() => ninos.filter(isActiveNino), [ninos])
-  const activeIds = useMemo(() => new Set(activeNinos.map(n => n.id)), [activeNinos])
   const sabadosYear = useMemo(() => filterSabadosByYear(sabados, year), [sabados, year])
+  const activeNinos = useMemo(() => ninos.filter(nino => ninoAttendancePercent(nino.id, sabadosYear, registros) > 0), [ninos, sabadosYear, registros])
+  const ninoIds = useMemo(() => new Set(ninos.map(n => n.id)), [ninos])
   const fidelidadPromedio = averageJanijFidelity(ninos, sabadosYear, registros)
-  const promedioNinos = averageAttendanceCountPerSabado(sabadosYear, activeIds, registros)
+  const promedioNinos = averageAttendanceCountPerSabado(sabadosYear, ninoIds, registros)
   const chartData = sabadosYear.slice().reverse().map(sabado => ({
     fecha: sabado.fecha.slice(5),
-    asistentes: countAttendanceForSabado(sabado.id, activeIds, registros),
+    asistentes: countAttendanceForSabado(sabado.id, ninoIds, registros),
   }))
 
   if (loading) {

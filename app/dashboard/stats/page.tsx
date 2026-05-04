@@ -12,7 +12,7 @@ import {
   countAttendanceForSabado,
   filterSabadosByYear,
   groupBySchool,
-  isActiveNino,
+  ninoAttendancePercent,
 } from '@/lib/metrics'
 import type { Grupo, Nino, Registro, Sabado } from '@/lib/types'
 
@@ -42,21 +42,21 @@ export default function StatsPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  const activeNinos = useMemo(() => ninos.filter(isActiveNino), [ninos])
   const years = useMemo(() => Array.from(new Set([...sabados.map(s => Number(s.fecha.slice(0, 4))).filter(Number.isFinite), currentYear])).sort((a, b) => b - a), [sabados, currentYear])
   const sabadosYear = useMemo(() => filterSabadosByYear(sabados, year), [sabados, year])
-  const activeIds = useMemo(() => new Set(activeNinos.map(n => n.id)), [activeNinos])
+  const activeNinos = useMemo(() => ninos.filter(nino => ninoAttendancePercent(nino.id, sabadosYear, registros) > 0), [ninos, sabadosYear, registros])
+  const ninoIds = useMemo(() => new Set(ninos.map(n => n.id)), [ninos])
 
   const general = {
     activos: activeNinos.length,
     sabados: sabadosYear.length,
-    promedioNinos: averageAttendanceCountPerSabado(sabadosYear, activeIds, registros),
+    promedioNinos: averageAttendanceCountPerSabado(sabadosYear, ninoIds, registros),
     fidelidad: averageJanijFidelity(ninos, sabadosYear, registros),
   }
 
   const byKvutza = grupos.map(grupo => {
     const grupoNinos = ninos.filter(n => n.grupoId === grupo.id)
-    const ids = new Set(grupoNinos.filter(isActiveNino).map(n => n.id))
+    const ids = new Set(grupoNinos.map(n => n.id))
     return {
       nombre: grupo.nombre,
       janijim: grupoNinos.length,
@@ -68,13 +68,13 @@ export default function StatsPage() {
   const byEscuela = groupBySchool(ninos, sabadosYear, registros)
   const trend = sabadosYear.slice().reverse().map(sabado => ({
     fecha: sabado.fecha.slice(5),
-    asistentes: countAttendanceForSabado(sabado.id, activeIds, registros),
+    asistentes: countAttendanceForSabado(sabado.id, ninoIds, registros),
   }))
   const yearlyData = years.slice().reverse().map(y => {
     const sabadosY = filterSabadosByYear(sabados, y)
     return {
       year: y,
-      promedio: averageAttendanceCountPerSabado(sabadosY, activeIds, registros),
+      promedio: averageAttendanceCountPerSabado(sabadosY, ninoIds, registros),
       fidelidad: averageJanijFidelity(ninos, sabadosY, registros),
       sabados: sabadosY.length,
     }

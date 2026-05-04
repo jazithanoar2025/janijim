@@ -46,6 +46,10 @@ service cloud.firestore {
       return !(field in data) || data[field] is bool;
     }
 
+    function isOptionalRole(data, field) {
+      return !(field in data) || data[field] in ['superadmin', 'admin'];
+    }
+
     function isNonNegativeNumber(value) {
       return value is number && value >= 0 && value < 1000000;
     }
@@ -72,7 +76,7 @@ service cloud.firestore {
     }
 
     function validNino(data) {
-      return data.keys().hasOnly(['nombre', 'apellido', 'grupoId', 'escuela', 'escuelaId', 'telefono', 'observaciones', 'activo', 'creadoEn', 'creadoPor']) &&
+      return data.keys().hasOnly(['nombre', 'apellido', 'grupoId', 'escuela', 'escuelaId', 'telefono', 'observaciones', 'activo', 'creadoEn', 'creadoPor', 'creadoPorRol']) &&
         isNonEmptyString(data.nombre, 80) &&
         isNonEmptyString(data.apellido, 80) &&
         isNonEmptyString(data.grupoId, 128) &&
@@ -82,6 +86,7 @@ service cloud.firestore {
         isOptionalString(data, 'observaciones', 500) &&
         isOptionalString(data, 'creadoEn', 40) &&
         isOptionalString(data, 'creadoPor', 254) &&
+        isOptionalRole(data, 'creadoPorRol') &&
         isOptionalBool(data, 'activo');
     }
 

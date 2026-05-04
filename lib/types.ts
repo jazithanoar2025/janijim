@@ -26,6 +26,7 @@ export interface Nino {
   activo: boolean
   creadoEn?: string
   creadoPor?: string
+  creadoPorRol?: UserRole
 }
 
 export interface Sabado {
