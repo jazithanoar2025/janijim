@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, uid: newUser.uid })
   } catch (err) {
     console.error('Create user error:', err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    return NextResponse.json({ error: 'No se pudo crear o reparar el usuario.' }, { status: 500 })
   }
 }
 
@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
     })
   } catch (err) {
     console.error('List users error:', err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    return NextResponse.json({ error: 'No se pudieron cargar los usuarios.' }, { status: 500 })
   }
 }
 
@@ -125,6 +125,13 @@ export async function PATCH(req: NextRequest) {
 
     if (!uid) return NextResponse.json({ error: 'Falta uid.' }, { status: 400 })
     const { auth, db } = session
+    if (grupoId) {
+      const groupSnap = await db.doc(`grupos/${grupoId}`).get()
+      if (!groupSnap.exists) {
+        return NextResponse.json({ error: 'La kvutza no existe.' }, { status: 400 })
+      }
+    }
+
     const updateAuth: { password?: string; disabled?: boolean; displayName?: string } = {}
     if (password) updateAuth.password = password
     if (typeof disabled === 'boolean') updateAuth.disabled = disabled
@@ -140,6 +147,6 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error('Update user error:', err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    return NextResponse.json({ error: 'No se pudo actualizar el usuario.' }, { status: 500 })
   }
 }

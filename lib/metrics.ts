@@ -67,17 +67,29 @@ export function computeDebtRows(ninos: Nino[], sabados: Sabado[], registros: Reg
 }
 
 export function groupBySchool(ninos: Nino[], sabados: Sabado[], registros: Registro[]) {
-  const buckets = new Map<string, Nino[]>()
+  const buckets = new Map<string, { label: string; ninos: Nino[] }>()
   for (const nino of ninos) {
-    const escuela = nino.escuela?.trim() || 'Sin escuela'
-    buckets.set(escuela, [...(buckets.get(escuela) ?? []), nino])
+    const label = nino.escuela?.trim() || 'Sin escuela'
+    const key = normalizeSchoolName(label)
+    const bucket = buckets.get(key) ?? { label, ninos: [] }
+    bucket.ninos.push(nino)
+    buckets.set(key, bucket)
   }
 
-  return Array.from(buckets.entries())
-    .map(([escuela, escuelaNinos]) => ({
-      escuela,
+  return Array.from(buckets.values())
+    .map(({ label, ninos: escuelaNinos }) => ({
+      escuela: label,
       janijim: escuelaNinos.length,
       fidelidad: averageJanijFidelity(escuelaNinos, sabados, registros),
     }))
     .sort((a, b) => b.janijim - a.janijim)
+}
+
+function normalizeSchoolName(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .trim()
+    .toUpperCase()
 }

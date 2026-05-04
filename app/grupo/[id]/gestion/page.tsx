@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { PageFade } from '@/components/ui/page-fade'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { addNino, deleteNino, getNinosByGrupo, updateNino } from '@/lib/firestore'
+import { escuelasUruguay, findEscuelaById, findEscuelaByLabel, formatEscuela } from '@/lib/escuelas'
 import { isActiveNino } from '@/lib/metrics'
 import type { Nino } from '@/lib/types'
 
@@ -46,11 +47,12 @@ export default function GestionPage() {
   }
 
   function openEdit(nino: Nino) {
+    const escuela = findEscuelaById(nino.escuelaId)
     setEditing(nino)
     setForm({
       nombre: nino.nombre,
       apellido: nino.apellido,
-      escuela: nino.escuela ?? '',
+      escuela: escuela ? formatEscuela(escuela) : nino.escuela ?? '',
       telefono: nino.telefono ?? '',
       observaciones: nino.observaciones ?? '',
     })
@@ -65,11 +67,14 @@ export default function GestionPage() {
     setSaving(true)
     setError('')
     try {
+      const selectedEscuela = findEscuelaByLabel(form.escuela)
+      const escuelaValue = selectedEscuela?.nombre ?? form.escuela.trim()
       const data = {
         nombre: form.nombre.trim(),
         apellido: form.apellido.trim(),
         grupoId: id,
-        escuela: form.escuela.trim(),
+        escuela: escuelaValue,
+        escuelaId: selectedEscuela?.id ?? '',
         telefono: form.telefono.trim(),
         observaciones: form.observaciones.trim(),
         activo: editing?.activo ?? true,
@@ -128,7 +133,23 @@ export default function GestionPage() {
               <div className="space-y-3">
                 <div><Label>Nombre</Label><Input value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} /></div>
                 <div><Label>Apellido</Label><Input value={form.apellido} onChange={e => setForm({ ...form, apellido: e.target.value })} /></div>
-                <div><Label>Escuela</Label><Input value={form.escuela} onChange={e => setForm({ ...form, escuela: e.target.value })} /></div>
+                <div>
+                  <Label>Escuela</Label>
+                  <Input
+                    list="escuelas-uruguay"
+                    value={form.escuela}
+                    onChange={e => setForm({ ...form, escuela: e.target.value })}
+                    placeholder="Buscar escuela oficial..."
+                  />
+                  <datalist id="escuelas-uruguay">
+                    {escuelasUruguay.map(escuela => (
+                      <option key={escuela.id} value={formatEscuela(escuela)} />
+                    ))}
+                  </datalist>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Elegí una opción del catálogo ANEP para evitar duplicados por escritura.
+                  </p>
+                </div>
                 <div><Label>Teléfono</Label><Input value={form.telefono} onChange={e => setForm({ ...form, telefono: e.target.value })} /></div>
                 <div>
                   <Label>Observaciones</Label>

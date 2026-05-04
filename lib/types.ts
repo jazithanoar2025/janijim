@@ -20,6 +20,7 @@ export interface Nino {
   apellido: string
   grupoId: string
   escuela?: string
+  escuelaId?: string
   telefono?: string
   observaciones?: string
   activo: boolean

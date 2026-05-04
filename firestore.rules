@@ -72,11 +72,12 @@ service cloud.firestore {
     }
 
     function validNino(data) {
-      return data.keys().hasOnly(['nombre', 'apellido', 'grupoId', 'escuela', 'telefono', 'observaciones', 'activo', 'creadoEn', 'creadoPor']) &&
+      return data.keys().hasOnly(['nombre', 'apellido', 'grupoId', 'escuela', 'escuelaId', 'telefono', 'observaciones', 'activo', 'creadoEn', 'creadoPor']) &&
         isNonEmptyString(data.nombre, 80) &&
         isNonEmptyString(data.apellido, 80) &&
         isNonEmptyString(data.grupoId, 128) &&
         isOptionalString(data, 'escuela', 120) &&
+        isOptionalString(data, 'escuelaId', 180) &&
         isOptionalString(data, 'telefono', 40) &&
         isOptionalString(data, 'observaciones', 500) &&
         isOptionalString(data, 'creadoEn', 40) &&
