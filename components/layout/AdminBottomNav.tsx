@@ -48,7 +48,7 @@ export function AdminBottomNav({ grupoId, grupoNombre, alertCount = 0 }: AdminBo
         </Button>
       </header>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t flex z-10">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t flex z-10" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {navItems.map(({ href, label, icon: Icon, badge }) => (
           <Link
             key={href}

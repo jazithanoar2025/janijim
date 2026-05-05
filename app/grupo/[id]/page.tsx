@@ -3,11 +3,11 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { CalendarDays, Percent, Users } from 'lucide-react'
+import { CalendarDays, Users } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { PageFade } from '@/components/ui/page-fade'
 import { getAllSabados, getAppConfig, getNinosByGrupo, getRegistrosByNinos } from '@/lib/firestore'
-import { attendanceRate, countAttendanceForSabado, filterSabadosByYear, getYears, isActiveNino } from '@/lib/metrics'
+import { averageAttendanceCountPerSabado, countAttendanceForSabado, filterSabadosByYear, getYears, isActiveNino } from '@/lib/metrics'
 import type { Nino, Registro, Sabado } from '@/lib/types'
 
 export default function GrupoHomePage() {
@@ -43,7 +43,7 @@ export default function GrupoHomePage() {
   const activeNinoIds = useMemo(() => new Set(activeNinos.map(n => n.id)), [activeNinos])
   const sabadosYear = useMemo(() => filterSabadosByYear(sabados, year), [sabados, year])
   const years = useMemo(() => getYears(sabados, year), [sabados, year])
-  const promedio = attendanceRate(new Set(sabadosYear.map(s => s.id)), registros.filter(r => activeNinoIds.has(r.ninoId)), activeNinos.length)
+  const promedio = averageAttendanceCountPerSabado(sabadosYear, activeNinoIds, registros)
 
   if (loading) {
     return (
@@ -73,7 +73,7 @@ export default function GrupoHomePage() {
         <div className="grid grid-cols-3 gap-2">
           <Card><CardContent className="p-3"><Users size={18} className="text-slate-500" /><p className="text-xl font-bold">{activeNinos.length}</p><p className="text-xs text-slate-500">En lista</p></CardContent></Card>
           <Card><CardContent className="p-3"><CalendarDays size={18} className="text-slate-500" /><p className="text-xl font-bold">{sabadosYear.length}</p><p className="text-xs text-slate-500">Sábados</p></CardContent></Card>
-          <Card><CardContent className="p-3"><Percent size={18} className="text-slate-500" /><p className="text-xl font-bold">{promedio}%</p><p className="text-xs text-slate-500">Promedio</p></CardContent></Card>
+          <Card><CardContent className="p-3"><Users size={18} className="text-slate-500" /><p className="text-xl font-bold">{promedio}</p><p className="text-xs text-slate-500">Prom. janijim</p></CardContent></Card>
         </div>
 
         <div className="space-y-2">
