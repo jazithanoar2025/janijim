@@ -98,6 +98,7 @@ export default function LoginPage() {
             width={84}
             height={84}
             priority
+            unoptimized
             className="mx-auto mb-5 rounded-3xl border border-white/25 shadow-xl shadow-slate-950/20"
           />
           <h1 className="text-3xl font-extrabold leading-none tracking-normal">Jazit Hanoar</h1>
