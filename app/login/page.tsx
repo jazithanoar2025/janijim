@@ -93,7 +93,7 @@ export default function LoginPage() {
       }}
     >
       <div className="w-full max-w-md space-y-9">
-        <div className="text-center text-white">
+        <div className="text-center text-white animate-pop">
           <Image
             src="/icon-192.png"
             alt="Jazit Hanoar 75"
@@ -106,7 +106,7 @@ export default function LoginPage() {
           <p className="mt-2 text-sm font-medium text-white/75">El gigante de Rivera <span className="mx-1">·</span> v8</p>
         </div>
 
-        <Card className="w-full rounded-[22px] border-0 bg-white p-2 shadow-2xl shadow-slate-950/20">
+        <Card className="w-full rounded-[22px] border-0 bg-white p-2 shadow-2xl shadow-slate-950/20 animate-pop" style={{ animationDelay: '80ms' }}>
           <CardHeader className="sr-only">
             <CardTitle>Jazit Hanoar</CardTitle>
         </CardHeader>

@@ -71,17 +71,18 @@ export default function GrupoHomePage() {
         </div>
 
         <div className="grid grid-cols-3 gap-2">
-          <Card><CardContent className="p-3"><Users size={18} className="text-slate-500" /><p className="text-xl font-bold">{activeNinos.length}</p><p className="text-xs text-slate-500">En lista</p></CardContent></Card>
-          <Card><CardContent className="p-3"><CalendarDays size={18} className="text-slate-500" /><p className="text-xl font-bold">{sabadosYear.length}</p><p className="text-xs text-slate-500">Sábados</p></CardContent></Card>
-          <Card><CardContent className="p-3"><Users size={18} className="text-slate-500" /><p className="text-xl font-bold">{promedio}</p><p className="text-xs text-slate-500">Prom. janijim</p></CardContent></Card>
+          <Card className="animate-pop" style={{ animationDelay: '0ms' }}><CardContent className="p-3"><Users size={18} className="text-slate-500" /><p className="text-xl font-bold">{activeNinos.length}</p><p className="text-xs text-slate-500">En lista</p></CardContent></Card>
+          <Card className="animate-pop" style={{ animationDelay: '50ms' }}><CardContent className="p-3"><CalendarDays size={18} className="text-slate-500" /><p className="text-xl font-bold">{sabadosYear.length}</p><p className="text-xs text-slate-500">Sábados</p></CardContent></Card>
+          <Card className="animate-pop" style={{ animationDelay: '100ms' }}><CardContent className="p-3"><Users size={18} className="text-slate-500" /><p className="text-xl font-bold">{promedio}</p><p className="text-xs text-slate-500">Prom. janijim</p></CardContent></Card>
         </div>
 
         <div className="space-y-2">
-          {sabadosYear.map(sabado => (
+          {sabadosYear.map((sabado, i) => (
             <Link
               key={sabado.id}
               href={`/grupo/${id}/sabado/${sabado.id}`}
-              className="block rounded-xl border bg-white p-4 transition-colors duration-100 hover:bg-slate-50"
+              className="block rounded-xl border bg-white p-4 transition-colors duration-100 hover:bg-slate-50 animate-fade-up"
+              style={{ animationDelay: `${i * 35}ms` }}
             >
               <div className="flex items-center justify-between">
                 <div>
