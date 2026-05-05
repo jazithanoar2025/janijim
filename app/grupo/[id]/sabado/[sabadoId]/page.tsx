@@ -3,12 +3,14 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, Save } from 'lucide-react'
+import { ArrowLeft, Save, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { PageFade } from '@/components/ui/page-fade'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { batchSaveRegistros, getAllSabados, getNinosByGrupo, getRegistrosBySabadoAndNinos } from '@/lib/firestore'
+import { normalizeEscuelaText } from '@/lib/escuelas'
 import { isActiveNino } from '@/lib/metrics'
 import type { Nino, Registro, Sabado } from '@/lib/types'
 
@@ -23,6 +25,7 @@ export default function SabadoPage() {
   const [sabado, setSabado] = useState<Sabado | null>(null)
   const [ninos, setNinos] = useState<Nino[]>([])
   const [rows, setRows] = useState<RowState>({})
+  const [query, setQuery] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -57,6 +60,11 @@ export default function SabadoPage() {
 
   const asistentes = useMemo(() => Object.values(rows).filter(r => r.vino).length, [rows])
   const pagos = useMemo(() => Object.values(rows).filter(r => r.vino && r.pago).length, [rows])
+  const filteredNinos = useMemo(() => {
+    const normalized = normalizeEscuelaText(query)
+    if (!normalized) return ninos
+    return ninos.filter(nino => normalizeEscuelaText(`${nino.nombre} ${nino.apellido} ${nino.escuela ?? ''}`).includes(normalized))
+  }, [ninos, query])
 
   function updateRow(ninoId: string, patch: Partial<{ vino: boolean; pago: boolean }>) {
     setRows(prev => {
@@ -115,13 +123,23 @@ export default function SabadoPage() {
           </CardContent>
         </Card>
 
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <Input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Buscar janij por nombre..."
+            className="pl-10"
+          />
+        </div>
+
         <div className="rounded-xl border bg-white overflow-hidden">
           <div className="grid grid-cols-[1fr_72px_72px] gap-2 px-3 py-2 text-xs font-semibold uppercase text-slate-500 bg-slate-50">
-            <span>Janij</span>
+            <span>Janij{query ? ` (${filteredNinos.length})` : ''}</span>
             <span>Vino</span>
             <span>Pagó</span>
           </div>
-          {ninos.map(nino => (
+          {filteredNinos.map(nino => (
             <div
               key={nino.id}
               className="grid grid-cols-[1fr_72px_72px] items-center gap-2 px-3 py-3 border-t transition-colors duration-100 hover:bg-slate-50"

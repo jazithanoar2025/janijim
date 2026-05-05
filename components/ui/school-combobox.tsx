@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { Input } from '@/components/ui/input'
-import { escuelasUruguay, formatEscuela } from '@/lib/escuelas'
+import { escuelasUruguay, formatEscuela, normalizeEscuelaText } from '@/lib/escuelas'
 
 interface SchoolComboboxProps {
   value: string
@@ -11,12 +11,12 @@ interface SchoolComboboxProps {
 
 export function SchoolCombobox({ value, onChange }: SchoolComboboxProps) {
   const [focused, setFocused] = useState(false)
-  const query = value.trim().toLowerCase()
+  const query = normalizeEscuelaText(value)
 
   const options = useMemo(() => {
     if (!query) return escuelasUruguay.slice(0, 20)
     return escuelasUruguay
-      .filter(escuela => formatEscuela(escuela).toLowerCase().includes(query))
+      .filter(escuela => normalizeEscuelaText(formatEscuela(escuela)).includes(query))
       .slice(0, 25)
   }, [query])
 
