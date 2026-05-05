@@ -14,19 +14,11 @@ async function requireSuperadmin(req: NextRequest) {
   return { auth, db, uid: decoded.uid }
 }
 
-function isStrongPassword(password: string): boolean {
-  return password.length >= 10 &&
-    /[a-z]/.test(password) &&
-    /[A-Z]/.test(password) &&
-    /\d/.test(password) &&
-    /[^A-Za-z0-9]/.test(password)
-}
-
 function passwordError(password?: string) {
   if (!password) return null
-  if (isStrongPassword(password)) return null
+  if (password.length >= 6) return null
   return NextResponse.json({
-    error: 'La contraseña debe tener al menos 10 caracteres, mayúscula, minúscula, número y símbolo.',
+    error: 'La contraseña debe tener al menos 6 caracteres.',
   }, { status: 400 })
 }
 
