@@ -73,7 +73,10 @@ export function SuperadminSidebar() {
         </Button>
       </aside>
 
-      <header className="md:hidden flex items-center justify-between px-4 py-3 bg-slate-900 text-white fixed top-0 left-0 right-0 z-20">
+      <header
+        className="md:hidden flex items-center justify-between px-4 bg-slate-900 text-white fixed top-0 left-0 right-0 z-20"
+        style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))', paddingBottom: '0.75rem' }}
+      >
         <div>
           <h1 className="font-bold">Jazit Hanoar</h1>
           <p className="text-xs text-slate-400">{usuario?.nombre}</p>
@@ -84,7 +87,7 @@ export function SuperadminSidebar() {
       </header>
 
       {menuOpen && (
-        <div className="md:hidden fixed inset-x-3 top-16 z-20 rounded-2xl border bg-white p-3 shadow-xl">
+        <div className="md:hidden fixed inset-x-3 z-20 rounded-2xl border bg-white p-3 shadow-xl overflow-y-auto max-h-[70svh]" style={{ top: 'calc(4rem + env(safe-area-inset-top))' }}>
           <nav className="grid grid-cols-2 gap-2">
             {navItems.map(({ href, label, icon: Icon }) => (
               <Link
