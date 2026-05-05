@@ -122,7 +122,10 @@ export default function SabadoPage() {
             <span>Pagó</span>
           </div>
           {ninos.map(nino => (
-            <div key={nino.id} className="grid grid-cols-[1fr_72px_72px] items-center gap-2 px-3 py-3 border-t transition-colors duration-100 hover:bg-slate-50">
+            <div
+              key={nino.id}
+              className="grid grid-cols-[1fr_72px_72px] items-center gap-2 px-3 py-3 border-t transition-colors duration-100 hover:bg-slate-50"
+            >
               <div>
                 <p className="font-medium text-slate-900">{nino.apellido}, {nino.nombre}</p>
                 {nino.escuela && <p className="text-xs text-slate-400">{nino.escuela}</p>}

@@ -53,7 +53,10 @@ export default function AlertasPage() {
 
         <div className="space-y-2">
           {alerts.map(({ nino, faltasConsecutivas, ultimaAsistencia, severity }) => (
-            <div key={nino.id} className="rounded-xl border bg-white p-4 transition-colors duration-100 hover:bg-slate-50">
+            <div
+              key={nino.id}
+              className="rounded-xl border bg-white p-4 transition-colors duration-100 hover:bg-slate-50"
+            >
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="font-semibold text-slate-900">{nino.nombre} {nino.apellido}</p>
