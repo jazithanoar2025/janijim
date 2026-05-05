@@ -52,21 +52,21 @@ export function AdminBottomNav({ grupoId, grupoNombre, alertCount = 0 }: AdminBo
       </header>
 
       <nav
-        className="fixed left-3 right-3 z-20 flex h-16 rounded-2xl border bg-white shadow-lg touch-manipulation"
-        style={{ bottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
+        className="fixed left-4 right-4 z-20 flex h-14 rounded-2xl border bg-white shadow-lg touch-manipulation"
+        style={{ bottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
       >
         {navItems.map(({ href, label, icon: Icon, badge }) => (
           <Link
             key={href}
             href={href}
-            className={`relative flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl text-xs transition-all duration-200 active:scale-95 [-webkit-tap-highlight-color:transparent] ${
-              isActive(href) ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
+            className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl text-[11px] transition-colors duration-100 [-webkit-tap-highlight-color:transparent] ${
+              isActive(href) ? 'text-slate-900' : 'text-slate-400'
             }`}
           >
             {isActive(href) && (
-              <span className="absolute top-1.5 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-slate-900 motion-safe:animate-fade-in" />
+              <span className="absolute top-1.5 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-slate-900" />
             )}
-            <span className={`relative transition-transform duration-200 ${isActive(href) ? 'motion-safe:scale-110' : ''}`}>
+            <span className="relative">
               <Icon size={20} />
               {badge !== undefined && (
                 <Badge className="absolute -top-1 -right-2 h-4 min-w-4 px-1 text-xs bg-red-500">

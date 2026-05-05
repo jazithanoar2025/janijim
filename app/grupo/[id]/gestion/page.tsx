@@ -9,10 +9,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageFade } from '@/components/ui/page-fade'
+import { SchoolCombobox } from '@/components/ui/school-combobox'
 import { useAuth } from '@/hooks/useAuth'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { addNino, deleteNino, getNinosByGrupo, updateNino } from '@/lib/firestore'
-import { escuelasUruguay, findEscuelaById, findEscuelaByLabel, formatEscuela } from '@/lib/escuelas'
+import { findEscuelaById, findEscuelaByLabel, formatEscuela } from '@/lib/escuelas'
 import { isActiveNino } from '@/lib/metrics'
 import type { Nino } from '@/lib/types'
 
@@ -140,17 +141,7 @@ export default function GestionPage() {
                 <div><Label>Apellido</Label><Input value={form.apellido} onChange={e => setForm({ ...form, apellido: e.target.value })} /></div>
                 <div>
                   <Label>Escuela</Label>
-                  <Input
-                    list="escuelas-uruguay"
-                    value={form.escuela}
-                    onChange={e => setForm({ ...form, escuela: e.target.value })}
-                    placeholder="Buscar escuela oficial..."
-                  />
-                  <datalist id="escuelas-uruguay">
-                    {escuelasUruguay.map(escuela => (
-                      <option key={escuela.id} value={formatEscuela(escuela)} />
-                    ))}
-                  </datalist>
+                  <SchoolCombobox value={form.escuela} onChange={escuela => setForm({ ...form, escuela })} />
                   <p className="mt-1 text-xs text-slate-400">
                     Elegí una opción del catálogo ANEP para evitar duplicados por escritura.
                   </p>

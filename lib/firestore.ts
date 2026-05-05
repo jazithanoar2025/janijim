@@ -168,7 +168,8 @@ export async function batchSaveRegistros(
   registros: Array<{ ninoId: string; sabadoId: string; vino: boolean; pago: boolean; registradoPor: string }>
 ): Promise<void> {
   const db = getDb()
-  const chunkSize = 450
+  // Firestore rules can spend access checks per write; small batches avoid permission-limit failures.
+  const chunkSize = 10
   for (let i = 0; i < registros.length; i += chunkSize) {
     const batch = writeBatch(db)
     registros.slice(i, i + chunkSize).forEach(r => {

@@ -30,7 +30,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <AuthGuard requiredRole="admin" grupoId={id}>
       <AdminBottomNav grupoId={id} alertCount={alertCount} />
-      <main className="pt-14 min-h-screen bg-slate-50" style={{ paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))' }}>
+      <main
+        className="min-h-screen bg-slate-50"
+        style={{
+          paddingTop: 'calc(3.75rem + env(safe-area-inset-top))',
+          paddingBottom: 'calc(5.5rem + env(safe-area-inset-bottom))',
+        }}
+      >
         <div className="p-4">
           {children}
         </div>
