@@ -87,15 +87,13 @@ export default function LoginPage() {
 
   return (
     <main
-      className="flex min-h-screen items-center justify-center bg-cover bg-center p-4"
-      style={{
-        backgroundImage: "linear-gradient(135deg, rgba(63, 113, 152, 0.78), rgba(18, 61, 103, 0.82), rgba(31, 93, 154, 0.76)), url('/login-flag-bg.jpg')",
-      }}
+      className="flex min-h-screen items-center justify-center p-4"
+      style={{ background: 'linear-gradient(160deg, #0a0040 0%, #19006f 55%, #1e3a8a 100%)' }}
     >
       <div className="w-full max-w-md space-y-9">
         <div className="text-center text-white animate-pop">
           <Image
-            src="/icon-192.png"
+            src="/jhazit-75-logo.png"
             alt="Jazit Hanoar 75"
             width={84}
             height={84}
