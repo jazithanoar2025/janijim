@@ -204,8 +204,10 @@ export async function batchSaveRegistros(
 }
 
 export async function getUsuarios(): Promise<Usuario[]> {
-  const snap = await getDocs(collection(getDb(), 'usuarios'))
-  return snap.docs.map(d => ({ uid: d.id, ...d.data() }) as Usuario)
+  return cached('usuarios:all', async () => {
+    const snap = await getDocs(collection(getDb(), 'usuarios'))
+    return snap.docs.map(d => ({ uid: d.id, ...d.data() }) as Usuario)
+  })
 }
 
 async function deleteRefs(refs: DocumentReference[]): Promise<void> {

@@ -80,23 +80,25 @@ export default function KvutzotPage() {
                       <span className="block text-sm text-slate-500">{janijim.length} janijim cargados</span>
                     </span>
                   </button>
-                  <Link href={`/grupo/${grupo.id}`} className="mr-4 inline-flex h-8 items-center gap-1 rounded-lg border px-3 text-sm font-medium transition-colors duration-150 hover:bg-slate-50">
-                    Abrir <ArrowRight size={15} />
+                  <Link href="/dashboard/stats" className="mr-4 inline-flex h-8 items-center gap-1 rounded-lg border px-3 text-sm font-medium transition-colors duration-150 hover:bg-slate-50">
+                    Estadísticas <ArrowRight size={15} />
                   </Link>
                 </div>
                 {expanded && (
                   <div className="grid gap-2 border-t bg-slate-50/50 p-4 md:grid-cols-2 xl:grid-cols-3">
                     {janijim.map(nino => (
                       <div key={nino.id} className={`rounded-xl border bg-white p-3 transition-colors duration-100 hover:bg-slate-50 ${nino.activo === false ? 'opacity-60' : ''}`}>
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
                             <p className="font-medium text-slate-900">{nino.apellido}, {nino.nombre}</p>
-                            <p className="text-xs text-slate-500">{formatNinoEscuela(nino)}</p>
+                            <p className="break-words text-xs text-slate-500">{formatNinoEscuela(nino)}</p>
                           </div>
-                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${nino.activo === false ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-700'}`}>
-                            {nino.activo === false ? 'Oculto' : 'Operativo'}
-                          </span>
-                          {isNuevoNino(nino) && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">Nuevo</span>}
+                          <div className="flex shrink-0 flex-wrap gap-1">
+                            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${nino.activo === false ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-700'}`}>
+                              {nino.activo === false ? 'Oculto' : 'Operativo'}
+                            </span>
+                            {isNuevoNino(nino) && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">Nuevo</span>}
+                          </div>
                         </div>
                         {nino.telefono && <p className="mt-2 inline-flex items-center gap-1 text-xs text-slate-500"><Phone size={12} />{nino.telefono}</p>}
                       </div>

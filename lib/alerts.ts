@@ -36,6 +36,7 @@ export function computeAlerts(
     if (nino.activo === false) continue
     const vinoIds = vinoByNino.get(nino.id) ?? new Set<string>()
     const asistencias = vinoIds.size
+    if (asistencias === 0) continue
 
     const fidelidad = Math.round((asistencias / sabadosAnio.length) * 100)
     const lastAttendedIndex = findLastIndex(sabadosAnio, sabado => vinoIds.has(sabado.id))

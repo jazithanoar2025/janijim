@@ -5,14 +5,14 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { CalendarDays, Percent, Users, UsersRound } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { PageFade } from '@/components/ui/page-fade'
-import { getAllNinos, getAllSabados, getAppConfig, getGrupos, getRegistrosBySabados } from '@/lib/firestore'
+import { getAllNinos, getAllSabados, getAppConfig, getGrupos, getRegistrosBySabados, getUsuarios } from '@/lib/firestore'
 import {
   averageAttendanceCountPerSabado,
   averageJanijFidelity,
   countAttendanceForSabado,
   filterSabadosByYear,
   isActiveNino,
-  ninoAttendancePercent,
+  isNuevoNino,
 } from '@/lib/metrics'
 import type { Grupo, Nino, Registro, Sabado } from '@/lib/types'
 
@@ -23,11 +23,12 @@ export default function DashboardPage() {
   const [grupos, setGrupos] = useState<Grupo[]>([])
   const [sabados, setSabados] = useState<Sabado[]>([])
   const [registros, setRegistros] = useState<Registro[]>([])
+  const [responsableEmails, setResponsableEmails] = useState(new Set<string>())
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([getAllNinos(), getGrupos(), getAllSabados(), getAppConfig()])
-      .then(async ([ninosData, gruposData, sabadosData, config]) => {
+    Promise.all([getAllNinos(), getGrupos(), getAllSabados(), getAppConfig(), getUsuarios()])
+      .then(async ([ninosData, gruposData, sabadosData, config, usuarios]) => {
         if (cancelled) return
         const activeYear = config.añoActivo
         const registrosData = await getRegistrosBySabados(filterSabadosByYear(sabadosData, activeYear).map(s => s.id))
@@ -36,6 +37,7 @@ export default function DashboardPage() {
         setGrupos(gruposData)
         setSabados(sabadosData)
         setRegistros(registrosData)
+        setResponsableEmails(new Set(usuarios.filter(u => u.rol === 'admin').map(u => u.email.trim().toLowerCase())))
         setYear(activeYear)
         setLoading(false)
       })
@@ -47,10 +49,22 @@ export default function DashboardPage() {
   }, [])
 
   const sabadosYear = useMemo(() => filterSabadosByYear(sabados, year), [sabados, year])
+  const attendanceByNino = useMemo(() => {
+    const sabadoIds = new Set(sabadosYear.map(sabado => sabado.id))
+    const byNino = new Map<string, Set<string>>()
+    for (const registro of registros) {
+      if (!registro.vino || !sabadoIds.has(registro.sabadoId)) continue
+      const ids = byNino.get(registro.ninoId) ?? new Set<string>()
+      ids.add(registro.sabadoId)
+      byNino.set(registro.ninoId, ids)
+    }
+    return byNino
+  }, [registros, sabadosYear])
   const operationalNinos = useMemo(() => ninos.filter(isActiveNino), [ninos])
-  const activeNinos = useMemo(() => operationalNinos.filter(nino => ninoAttendancePercent(nino.id, sabadosYear, registros) > 0), [operationalNinos, sabadosYear, registros])
-  const ninoIds = useMemo(() => new Set(operationalNinos.map(n => n.id)), [operationalNinos])
-  const fidelidadPromedio = averageJanijFidelity(operationalNinos, sabadosYear, registros)
+  const realNinos = useMemo(() => operationalNinos.filter(nino => (attendanceByNino.get(nino.id)?.size ?? 0) > 0), [operationalNinos, attendanceByNino])
+  const nuevosCount = useMemo(() => realNinos.filter(nino => isNuevoNino(nino, responsableEmails)).length, [realNinos, responsableEmails])
+  const ninoIds = useMemo(() => new Set(realNinos.map(n => n.id)), [realNinos])
+  const fidelidadPromedio = averageJanijFidelity(realNinos, sabadosYear, registros)
   const promedioNinos = averageAttendanceCountPerSabado(sabadosYear, ninoIds, registros)
   const chartData = sabadosYear.slice().reverse().map(sabado => ({
     fecha: sabado.fecha.slice(5),
@@ -79,8 +93,9 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <Card className="bg-white"><CardContent className="flex items-center gap-3 p-4"><Users size={20} className="text-slate-500" /><div><p className="text-2xl font-bold">{activeNinos.length}</p><p className="text-xs text-slate-500">Janijim activos</p></div></CardContent></Card>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <Card className="bg-white"><CardContent className="flex items-center gap-3 p-4"><Users size={20} className="text-slate-500" /><div><p className="text-2xl font-bold">{realNinos.length}</p><p className="text-xs text-slate-500">Janijim activos</p></div></CardContent></Card>
+          <Card><CardContent className="flex items-center gap-3 p-4"><Users size={20} className="text-blue-600" /><div><p className="text-2xl font-bold">{nuevosCount}</p><p className="text-xs text-slate-500">Janijim nuevos</p></div></CardContent></Card>
           <Card><CardContent className="flex items-center gap-3 p-4"><UsersRound size={20} className="text-slate-500" /><div><p className="text-2xl font-bold">{grupos.length}</p><p className="text-xs text-slate-500">Kvutzot</p></div></CardContent></Card>
           <Card><CardContent className="flex items-center gap-3 p-4"><CalendarDays size={20} className="text-slate-500" /><div><p className="text-2xl font-bold">{sabadosYear.length}</p><p className="text-xs text-slate-500">Sábados</p></div></CardContent></Card>
           <Card><CardContent className="flex items-center gap-3 p-4"><Users size={20} className="text-emerald-600" /><div><p className="text-2xl font-bold">{promedioNinos}</p><p className="text-xs text-slate-500">Promedio niños</p></div></CardContent></Card>

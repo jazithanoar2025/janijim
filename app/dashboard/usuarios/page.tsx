@@ -49,8 +49,8 @@ export default function UsuariosPage() {
   }, [load])
 
   const grupoMap = useMemo(() => new Map(grupos.map(g => [g.id, g.nombre])), [grupos])
-  const admins = usuarios.filter(u => u.rol === 'admin')
-  const superadmins = usuarios.filter(u => u.rol === 'superadmin')
+  const admins = useMemo(() => usuarios.filter(u => u.rol === 'admin'), [usuarios])
+  const superadmins = useMemo(() => usuarios.filter(u => u.rol === 'superadmin'), [usuarios])
 
   async function handleCreate() {
     setSaving(true)
@@ -132,7 +132,7 @@ export default function UsuariosPage() {
           <p className="text-sm text-slate-300">Crear, reparar, editar y resetear accesos de admins y superadmins.</p>
         </div>
         <Card>
-          <CardContent className="grid gap-3 p-4 md:grid-cols-[1fr_1fr_1fr_1fr_auto] md:items-end">
+          <CardContent className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_auto] xl:items-end">
             <div><Label>Usuario</Label><Input value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} /></div>
             <div><Label>Nombre</Label><Input value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} /></div>
             <div><Label>Contraseña</Label><Input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} /></div>
@@ -142,7 +142,7 @@ export default function UsuariosPage() {
                 {grupos.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
               </select>
             </div>
-            <Button onClick={handleCreate} disabled={saving} className={`transition-all duration-200 ${saved ? 'bg-green-600 text-white' : ''}`}>
+            <Button onClick={handleCreate} disabled={saving} className={`w-full transition-all duration-200 sm:col-span-2 xl:col-span-1 ${saved ? 'bg-green-600 text-white' : ''}`}>
               <Plus size={16} /> {saving ? 'Guardando...' : saved ? '¡Guardado!' : 'Crear/Reparar'}
             </Button>
           </CardContent>
@@ -153,16 +153,16 @@ export default function UsuariosPage() {
           {admins.map(u => (
             <div key={u.uid} className="rounded-xl border bg-white p-4 transition-colors duration-100 hover:bg-slate-50">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
+                <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-semibold text-slate-900">{u.nombre}</p>
                     {renderStatus(u)}
                   </div>
-                  <p className="text-sm text-slate-500">{u.email.replace('@jazit.local', '')} · {u.grupoId ? grupoMap.get(u.grupoId) ?? u.grupoId : '-'}</p>
+                  <p className="break-words text-sm text-slate-500">{u.email.replace('@jazit.local', '')} · {u.grupoId ? grupoMap.get(u.grupoId) ?? u.grupoId : '-'}</p>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" onClick={() => editUser(u)}>Editar</Button>
-                  <Button size="sm" variant="outline" onClick={() => resetPassword(u.uid)}>Resetear acceso</Button>
+                <div className="grid gap-2 sm:flex sm:flex-wrap">
+                  <Button size="sm" variant="outline" onClick={() => editUser(u)} className="w-full sm:w-auto">Editar</Button>
+                  <Button size="sm" variant="outline" onClick={() => resetPassword(u.uid)} className="w-full sm:w-auto">Resetear acceso</Button>
                 </div>
               </div>
             </div>
@@ -173,18 +173,18 @@ export default function UsuariosPage() {
           {superadmins.map(u => (
             <div key={u.uid} className="rounded-xl border bg-white p-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
+                <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <ShieldCheck size={16} className="text-emerald-600" />
                     <p className="font-semibold text-slate-900">{u.nombre}</p>
                     {u.uid === currentUid && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">Tu usuario</span>}
                     {renderStatus(u)}
                   </div>
-                  <p className="text-sm text-slate-500">{u.email.replace('@jazit.local', '')}</p>
+                  <p className="break-words text-sm text-slate-500">{u.email.replace('@jazit.local', '')}</p>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" onClick={() => editUser(u)}>Editar nombre</Button>
-                  <Button size="sm" variant="outline" onClick={() => resetPassword(u.uid)}>Cambiar contraseña</Button>
+                <div className="grid gap-2 sm:flex sm:flex-wrap">
+                  <Button size="sm" variant="outline" onClick={() => editUser(u)} className="w-full sm:w-auto">Editar nombre</Button>
+                  <Button size="sm" variant="outline" onClick={() => resetPassword(u.uid)} className="w-full sm:w-auto">Cambiar contraseña</Button>
                 </div>
               </div>
             </div>

@@ -5,7 +5,7 @@ import { Bell, UsersRound } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { PageFade } from '@/components/ui/page-fade'
 import { formatNinoEscuela } from '@/lib/escuelas'
-import { getAllNinos, getAllSabados, getAppConfig, getGrupos, getRegistrosBySabados } from '@/lib/firestore'
+import { getAllNinos, getAllSabados, getAppConfig, getGrupos, getRegistrosBySabados, getUsuarios } from '@/lib/firestore'
 import { computeAlerts, type Alerta } from '@/lib/alerts'
 import { filterSabadosByYear, isNuevoNino } from '@/lib/metrics'
 import type { Grupo } from '@/lib/types'
@@ -21,15 +21,17 @@ export default function AlertasGeneralesPage() {
   const [grupoId, setGrupoId] = useState('todos')
   const [onlyNew, setOnlyNew] = useState(false)
   const [umbral, setUmbral] = useState(0)
+  const [responsableEmails, setResponsableEmails] = useState(new Set<string>())
   const [error, setError] = useState('')
 
   useEffect(() => {
-    Promise.all([getAllSabados(), getAllNinos(), getAppConfig(), getGrupos()])
-      .then(async ([sabados, ninos, config, gruposData]) => {
+    Promise.all([getAllSabados(), getAllNinos(), getAppConfig(), getGrupos(), getUsuarios()])
+      .then(async ([sabados, ninos, config, gruposData, usuarios]) => {
         const registros = await getRegistrosBySabados(filterSabadosByYear(sabados, config.añoActivo).map(s => s.id))
         const grupoMap = new Map(gruposData.map(g => [g.id, g.nombre]))
         setGrupos(gruposData)
         setUmbral(config.umbralFidelidadAlerta)
+        setResponsableEmails(new Set(usuarios.filter(u => u.rol === 'admin').map(u => u.email.trim().toLowerCase())))
         setAlerts(computeAlerts(sabados, ninos, registros, config.umbralFidelidadAlerta, config.añoActivo)
           .map(alert => ({ ...alert, grupoNombre: grupoMap.get(alert.nino.grupoId) ?? alert.nino.grupoId })))
       })
@@ -42,9 +44,9 @@ export default function AlertasGeneralesPage() {
 
   const filtered = useMemo(() => alerts.filter(alert => {
     const groupOk = grupoId === 'todos' || alert.nino.grupoId === grupoId
-    const newOk = !onlyNew || isNuevoNino(alert.nino)
+    const newOk = !onlyNew || isNuevoNino(alert.nino, responsableEmails)
     return groupOk && newOk
-  }), [alerts, grupoId, onlyNew])
+  }), [alerts, grupoId, onlyNew, responsableEmails])
 
   if (loading) return <PageFade>{[0, 1, 2, 3].map(i => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse mb-2" />)}</PageFade>
 
@@ -85,7 +87,7 @@ export default function AlertasGeneralesPage() {
                     {ultimaAsistencia ? ` · Última: ${new Date(`${ultimaAsistencia}T00:00:00`).toLocaleDateString('es-UY')}` : ' · Sin asistencias'}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {isNuevoNino(nino) && <Badge className="bg-blue-500">Nuevo</Badge>}
+                    {isNuevoNino(nino, responsableEmails) && <Badge className="bg-blue-500">Nuevo</Badge>}
                     {nino.activo === false && <Badge className="bg-zinc-500">Oculto</Badge>}
                   </div>
                 </div>

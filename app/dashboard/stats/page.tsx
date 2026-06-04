@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { PageFade } from '@/components/ui/page-fade'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { computeAlerts } from '@/lib/alerts'
 import { formatNinoEscuela } from '@/lib/escuelas'
-import { getAllNinos, getAllRegistros, getAllSabados, getAppConfig, getGrupos } from '@/lib/firestore'
+import { getAllNinos, getAllSabados, getAppConfig, getGrupos, getRegistrosBySabados, getUsuarios } from '@/lib/firestore'
 import {
   averageAttendanceCountPerSabado,
   averageJanijFidelity,
@@ -16,7 +16,7 @@ import {
   filterSabadosByYear,
   groupBySchool,
   isActiveNino,
-  ninoAttendancePercent,
+  isNuevoNino,
 } from '@/lib/metrics'
 import type { Grupo, Nino, Registro, Sabado } from '@/lib/types'
 
@@ -30,17 +30,21 @@ export default function StatsPage() {
   const [registros, setRegistros] = useState<Registro[]>([])
   const [selectedGrupoId, setSelectedGrupoId] = useState('')
   const [umbral, setUmbral] = useState(0)
+  const [responsableEmails, setResponsableEmails] = useState(new Set<string>())
   const [error, setError] = useState('')
 
   useEffect(() => {
-    Promise.all([getAllNinos(), getGrupos(), getAllSabados(), getAllRegistros(), getAppConfig()])
-      .then(([ninosData, gruposData, sabadosData, registrosData, config]) => {
+    Promise.all([getAllNinos(), getGrupos(), getAllSabados(), getAppConfig(), getUsuarios()])
+      .then(async ([ninosData, gruposData, sabadosData, config, usuarios]) => {
+        const activeYear = config.añoActivo
+        const registrosData = await getRegistrosBySabados(filterSabadosByYear(sabadosData, activeYear).map(s => s.id))
         setNinos(ninosData)
         setGrupos(gruposData)
         setSabados(sabadosData)
         setRegistros(registrosData)
-        setYear(config.añoActivo)
+        setYear(activeYear)
         setUmbral(config.umbralFidelidadAlerta)
+        setResponsableEmails(new Set(usuarios.filter(u => u.rol === 'admin').map(u => u.email.trim().toLowerCase())))
         setSelectedGrupoId(current => current || gruposData[0]?.id || '')
       })
       .catch(err => {
@@ -50,53 +54,8 @@ export default function StatsPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  const years = useMemo(() => Array.from(new Set([...sabados.map(s => Number(s.fecha.slice(0, 4))).filter(Number.isFinite), currentYear])).sort((a, b) => b - a), [sabados, currentYear])
+  const years = useMemo(() => Array.from(new Set([...sabados.map(s => Number(s.fecha.slice(0, 4))).filter(Number.isFinite), currentYear, year])).sort((a, b) => b - a), [sabados, currentYear, year])
   const sabadosYear = useMemo(() => filterSabadosByYear(sabados, year), [sabados, year])
-  const operationalNinos = useMemo(() => ninos.filter(isActiveNino), [ninos])
-  const activeNinos = useMemo(() => operationalNinos.filter(nino => ninoAttendancePercent(nino.id, sabadosYear, registros) > 0), [operationalNinos, sabadosYear, registros])
-  const ninoIds = useMemo(() => new Set(operationalNinos.map(n => n.id)), [operationalNinos])
-  const selectedGrupo = useMemo(() => grupos.find(grupo => grupo.id === selectedGrupoId), [grupos, selectedGrupoId])
-  const selectedNinos = useMemo(() => operationalNinos
-    .filter(nino => nino.grupoId === selectedGrupoId)
-    .sort((a, b) => a.apellido.localeCompare(b.apellido) || a.nombre.localeCompare(b.nombre)), [operationalNinos, selectedGrupoId])
-  const selectedNinoIds = useMemo(() => new Set(selectedNinos.map(nino => nino.id)), [selectedNinos])
-
-  const general = {
-    activos: activeNinos.length,
-    sabados: sabadosYear.length,
-    promedioNinos: averageAttendanceCountPerSabado(sabadosYear, ninoIds, registros),
-    fidelidad: averageJanijFidelity(operationalNinos, sabadosYear, registros),
-  }
-
-  const byKvutza = grupos.map(grupo => {
-    const grupoNinos = operationalNinos.filter(n => n.grupoId === grupo.id)
-    const ids = new Set(grupoNinos.map(n => n.id))
-    return {
-      id: grupo.id,
-      nombre: grupo.nombre,
-      janijim: grupoNinos.length,
-      promedio: averageAttendanceCountPerSabado(sabadosYear, ids, registros),
-      fidelidad: averageJanijFidelity(grupoNinos, sabadosYear, registros),
-    }
-  }).sort((a, b) => b.janijim - a.janijim)
-
-  const byEscuela = groupBySchool(operationalNinos, sabadosYear, registros)
-  const trend = sabadosYear.slice().reverse().map(sabado => ({
-    fecha: sabado.fecha.slice(5),
-    asistentes: countAttendanceForSabado(sabado.id, ninoIds, registros),
-  }))
-  const yearlyData = years.slice().reverse().map(y => {
-    const sabadosY = filterSabadosByYear(sabados, y)
-    return {
-      year: y,
-      promedio: averageAttendanceCountPerSabado(sabadosY, ninoIds, registros),
-      fidelidad: averageJanijFidelity(operationalNinos, sabadosY, registros),
-      sabados: sabadosY.length,
-    }
-  })
-  const alertByNino = useMemo(() => new Map(
-    computeAlerts(sabados, operationalNinos, registros, umbral, year).map(alert => [alert.nino.id, alert])
-  ), [sabados, operationalNinos, registros, umbral, year])
   const attendanceByNino = useMemo(() => {
     const sabadoIds = new Set(sabadosYear.map(sabado => sabado.id))
     const byNino = new Map<string, Set<string>>()
@@ -108,6 +67,44 @@ export default function StatsPage() {
     }
     return byNino
   }, [registros, sabadosYear])
+  const operationalNinos = useMemo(() => ninos.filter(isActiveNino), [ninos])
+  const realNinos = useMemo(() => operationalNinos.filter(nino => (attendanceByNino.get(nino.id)?.size ?? 0) > 0), [operationalNinos, attendanceByNino])
+  const ninoIds = useMemo(() => new Set(realNinos.map(n => n.id)), [realNinos])
+  const selectedGrupo = useMemo(() => grupos.find(grupo => grupo.id === selectedGrupoId), [grupos, selectedGrupoId])
+  const selectedNinos = useMemo(() => realNinos
+    .filter(nino => nino.grupoId === selectedGrupoId)
+    .sort((a, b) => a.apellido.localeCompare(b.apellido) || a.nombre.localeCompare(b.nombre)), [realNinos, selectedGrupoId])
+  const selectedNinoIds = useMemo(() => new Set(selectedNinos.map(nino => nino.id)), [selectedNinos])
+  const nuevosCount = useMemo(() => realNinos.filter(nino => isNuevoNino(nino, responsableEmails)).length, [realNinos, responsableEmails])
+
+  const general = {
+    activos: realNinos.length,
+    nuevos: nuevosCount,
+    sabados: sabadosYear.length,
+    promedioNinos: averageAttendanceCountPerSabado(sabadosYear, ninoIds, registros),
+    fidelidad: averageJanijFidelity(realNinos, sabadosYear, registros),
+  }
+
+  const byKvutza = grupos.map(grupo => {
+    const grupoNinos = realNinos.filter(n => n.grupoId === grupo.id)
+    const ids = new Set(grupoNinos.map(n => n.id))
+    return {
+      id: grupo.id,
+      nombre: grupo.nombre,
+      janijim: grupoNinos.length,
+      promedio: averageAttendanceCountPerSabado(sabadosYear, ids, registros),
+      fidelidad: averageJanijFidelity(grupoNinos, sabadosYear, registros),
+    }
+  }).sort((a, b) => b.janijim - a.janijim)
+
+  const byEscuela = groupBySchool(realNinos, sabadosYear, registros)
+  const trend = sabadosYear.slice().reverse().map(sabado => ({
+    fecha: sabado.fecha.slice(5),
+    asistentes: countAttendanceForSabado(sabado.id, ninoIds, registros),
+  }))
+  const alertByNino = useMemo(() => new Map(
+    computeAlerts(sabados, realNinos, registros, umbral, year).map(alert => [alert.nino.id, alert])
+  ), [sabados, realNinos, registros, umbral, year])
   const selectedIndividualRows = useMemo(() => selectedNinos.map(nino => {
     const attendedIds = attendanceByNino.get(nino.id) ?? new Set<string>()
     const alert = alertByNino.get(nino.id)
@@ -124,9 +121,20 @@ export default function StatsPage() {
   }).sort((a, b) => a.asistencia - b.asistencia || a.nino.apellido.localeCompare(b.nino.apellido)), [selectedNinos, attendanceByNino, alertByNino, sabadosYear])
   const selectedSummary = {
     janijim: selectedNinos.length,
+    nuevos: selectedNinos.filter(nino => isNuevoNino(nino, responsableEmails)).length,
     promedio: averageAttendanceCountPerSabado(sabadosYear, selectedNinoIds, registros),
     fidelidad: averageJanijFidelity(selectedNinos, sabadosYear, registros),
     alertas: selectedIndividualRows.filter(row => row.alert).length,
+  }
+
+  async function handleYearChange(nextYear: number) {
+    setYear(nextYear)
+    try {
+      setRegistros(await getRegistrosBySabados(filterSabadosByYear(sabados, nextYear).map(s => s.id)))
+    } catch (err) {
+      console.error('Failed to load stats year:', err)
+      setError('No se pudieron cargar los registros de ese año.')
+    }
   }
 
   if (loading) {
@@ -147,14 +155,15 @@ export default function StatsPage() {
               <p className="text-sm text-emerald-200">Lectura por kvutza, escuela y general</p>
               <h2 className="text-2xl font-bold">Estadísticas</h2>
             </div>
-            <select value={year} onChange={e => setYear(Number(e.target.value))} className="h-9 rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white">
+            <select value={year} onChange={e => handleYearChange(Number(e.target.value))} className="h-9 rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white">
               {years.map(y => <option key={y} value={y} className="text-slate-900">{y}</option>)}
             </select>
           </div>
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
           <Card><CardContent className="p-4"><p className="text-2xl font-bold">{general.activos}</p><p className="text-xs text-slate-500">Janijim activos</p></CardContent></Card>
+          <Card><CardContent className="p-4"><p className="text-2xl font-bold">{general.nuevos}</p><p className="text-xs text-slate-500">Janijim nuevos</p></CardContent></Card>
           <Card><CardContent className="p-4"><p className="text-2xl font-bold">{general.sabados}</p><p className="text-xs text-slate-500">Sábados</p></CardContent></Card>
           <Card><CardContent className="p-4"><p className="text-2xl font-bold">{general.promedioNinos}</p><p className="text-xs text-slate-500">Promedio niños</p></CardContent></Card>
           <Card><CardContent className="p-4"><p className="text-2xl font-bold">{general.fidelidad}%</p><p className="text-xs text-slate-500">Fidelidad promedio</p></CardContent></Card>
@@ -233,8 +242,9 @@ export default function StatsPage() {
               </select>
             </div>
 
-            <div className="mb-4 grid gap-3 md:grid-cols-4">
+            <div className="mb-4 grid gap-3 md:grid-cols-3 xl:grid-cols-5">
               <div className="rounded-xl border bg-slate-50 p-3"><p className="text-xl font-bold text-slate-950">{selectedSummary.janijim}</p><p className="text-xs text-slate-500">Janijim en {selectedGrupo?.nombre ?? 'kvutza'}</p></div>
+              <div className="rounded-xl border bg-slate-50 p-3"><p className="text-xl font-bold text-slate-950">{selectedSummary.nuevos}</p><p className="text-xs text-slate-500">Nuevos</p></div>
               <div className="rounded-xl border bg-slate-50 p-3"><p className="text-xl font-bold text-slate-950">{selectedSummary.promedio}</p><p className="text-xs text-slate-500">Promedio por sábado</p></div>
               <div className="rounded-xl border bg-slate-50 p-3"><p className="text-xl font-bold text-slate-950">{selectedSummary.fidelidad}%</p><p className="text-xs text-slate-500">Fidelidad promedio</p></div>
               <div className="rounded-xl border bg-slate-50 p-3"><p className="text-xl font-bold text-red-600">{selectedSummary.alertas}</p><p className="text-xs text-slate-500">Debajo del umbral</p></div>
@@ -269,21 +279,6 @@ export default function StatsPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm font-medium text-slate-700 mb-4">Histórico preservado</p>
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={yearlyData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="year" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Line type="monotone" dataKey="promedio" stroke="#0f766e" strokeWidth={2} />
-                <Line type="monotone" dataKey="fidelidad" stroke="#2563eb" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
       </div>
     </PageFade>
   )
