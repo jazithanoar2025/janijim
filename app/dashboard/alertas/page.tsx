@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { Bell, UsersRound } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { PageFade } from '@/components/ui/page-fade'
-import { getAllNinos, getAllRegistros, getAllSabados, getAppConfig, getGrupos, getUsuarios } from '@/lib/firestore'
+import { formatNinoEscuela } from '@/lib/escuelas'
+import { getAllNinos, getAllSabados, getAppConfig, getGrupos, getRegistrosBySabados } from '@/lib/firestore'
 import { computeAlerts, type Alerta } from '@/lib/alerts'
-import { isNuevoNino } from '@/lib/metrics'
+import { filterSabadosByYear, isNuevoNino } from '@/lib/metrics'
 import type { Grupo } from '@/lib/types'
 
 interface AlertRow extends Alerta {
@@ -19,15 +20,14 @@ export default function AlertasGeneralesPage() {
   const [grupos, setGrupos] = useState<Grupo[]>([])
   const [grupoId, setGrupoId] = useState('todos')
   const [onlyNew, setOnlyNew] = useState(false)
-  const [responsableEmails, setResponsableEmails] = useState(new Set<string>())
   const [error, setError] = useState('')
 
   useEffect(() => {
-    Promise.all([getAllSabados(), getAllNinos(), getAllRegistros(), getAppConfig(), getGrupos(), getUsuarios()])
-      .then(([sabados, ninos, registros, config, gruposData, usuarios]) => {
+    Promise.all([getAllSabados(), getAllNinos(), getAppConfig(), getGrupos()])
+      .then(async ([sabados, ninos, config, gruposData]) => {
+        const registros = await getRegistrosBySabados(filterSabadosByYear(sabados, config.añoActivo).map(s => s.id))
         const grupoMap = new Map(gruposData.map(g => [g.id, g.nombre]))
         setGrupos(gruposData)
-        setResponsableEmails(new Set(usuarios.filter(u => u.rol === 'admin').map(u => u.email.trim().toLowerCase())))
         setAlerts(computeAlerts(sabados, ninos, registros, config.umbralFidelidadAlerta, config.añoActivo)
           .map(alert => ({ ...alert, grupoNombre: grupoMap.get(alert.nino.grupoId) ?? alert.nino.grupoId })))
       })
@@ -40,9 +40,9 @@ export default function AlertasGeneralesPage() {
 
   const filtered = useMemo(() => alerts.filter(alert => {
     const groupOk = grupoId === 'todos' || alert.nino.grupoId === grupoId
-    const newOk = !onlyNew || isNuevoNino(alert.nino, responsableEmails)
+    const newOk = !onlyNew || isNuevoNino(alert.nino)
     return groupOk && newOk
-  }), [alerts, grupoId, onlyNew, responsableEmails])
+  }), [alerts, grupoId, onlyNew])
 
   if (loading) return <PageFade>{[0, 1, 2, 3].map(i => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse mb-2" />)}</PageFade>
 
@@ -76,10 +76,10 @@ export default function AlertasGeneralesPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold text-slate-950">{nino.nombre} {nino.apellido}</p>
-                  <p className="mt-1 flex items-center gap-1 text-sm text-slate-500"><UsersRound size={14} /> {grupoNombre} · {nino.escuela || 'Sin escuela'}</p>
+                  <p className="mt-1 flex items-center gap-1 text-sm text-slate-500"><UsersRound size={14} /> {grupoNombre} · {formatNinoEscuela(nino)}</p>
                   {ultimaAsistencia && <p className="mt-1 text-xs text-slate-500">Última asistencia: {new Date(`${ultimaAsistencia}T00:00:00`).toLocaleDateString('es-UY')}</p>}
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {isNuevoNino(nino, responsableEmails) && <Badge className="bg-blue-500">Nuevo</Badge>}
+                    {isNuevoNino(nino) && <Badge className="bg-blue-500">Nuevo</Badge>}
                     {nino.activo === false && <Badge className="bg-zinc-500">Oculto</Badge>}
                   </div>
                 </div>

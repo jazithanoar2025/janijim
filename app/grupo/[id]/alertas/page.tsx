@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { PageFade } from '@/components/ui/page-fade'
+import { formatNinoEscuela } from '@/lib/escuelas'
 import { getAllSabados, getAppConfig, getNinosByGrupo, getRegistrosByNinos } from '@/lib/firestore'
 import { computeAlerts, type Alerta } from '@/lib/alerts'
 
@@ -60,7 +61,7 @@ export default function AlertasPage() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="font-semibold text-slate-900">{nino.nombre} {nino.apellido}</p>
-                  {nino.escuela && <p className="text-xs text-slate-400">{nino.escuela}</p>}
+                  <p className="text-xs text-slate-400">{formatNinoEscuela(nino)}</p>
                   {ultimaAsistencia && <p className="text-xs text-slate-500">Última asistencia: {new Date(`${ultimaAsistencia}T00:00:00`).toLocaleDateString('es-UY')}</p>}
                 </div>
                 <div className="text-right">

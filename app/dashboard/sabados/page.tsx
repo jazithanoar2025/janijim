@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageFade } from '@/components/ui/page-fade'
 import { getFirebaseAuth } from '@/lib/firebase'
-import { addSabado, deleteSabado, getAllNinos, getAllRegistros, getAllSabados, getAppConfig } from '@/lib/firestore'
+import { addSabado, deleteSabado, getAllNinos, getAllSabados, getAppConfig, getRegistrosBySabados } from '@/lib/firestore'
 import { countAttendanceForSabado, countPaidForSabado, filterSabadosByYear, getYears, isActiveNino } from '@/lib/metrics'
 import type { Nino, Registro, Sabado } from '@/lib/types'
 
@@ -27,11 +27,13 @@ export default function SabadosAdminPage() {
   const [error, setError] = useState('')
 
   async function load() {
-    const [sabadosData, ninosData, registrosData, config] = await Promise.all([getAllSabados(), getAllNinos(), getAllRegistros(), getAppConfig()])
+    const [sabadosData, ninosData, config] = await Promise.all([getAllSabados(), getAllNinos(), getAppConfig()])
+    const activeYear = config.añoActivo
+    const registrosData = await getRegistrosBySabados(filterSabadosByYear(sabadosData, activeYear).map(s => s.id))
     setSabados(sabadosData)
     setNinos(ninosData.filter(isActiveNino))
     setRegistros(registrosData)
-    setYear(config.añoActivo)
+    setYear(activeYear)
   }
 
   useEffect(() => {
@@ -44,6 +46,16 @@ export default function SabadosAdminPage() {
   const years = useMemo(() => getYears(sabados, year), [sabados, year])
   const ninoIds = useMemo(() => new Set(ninos.map(n => n.id)), [ninos])
   const sabadosYear = useMemo(() => filterSabadosByYear(sabados, year), [sabados, year])
+
+  async function handleYearChange(nextYear: number) {
+    setYear(nextYear)
+    try {
+      setRegistros(await getRegistrosBySabados(filterSabadosByYear(sabados, nextYear).map(s => s.id)))
+    } catch (err) {
+      console.error('Failed to load sabados year:', err)
+      setError('No se pudieron cargar los registros de ese año.')
+    }
+  }
 
   async function handleCreate() {
     const parsedMonto = Number(monto)
@@ -92,7 +104,7 @@ export default function SabadosAdminPage() {
               <p className="text-sm text-emerald-200">Agenda institucional</p>
               <h2 className="text-2xl font-bold">Sábados</h2>
             </div>
-            <select value={year} onChange={e => setYear(Number(e.target.value))} className="h-9 rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white">
+            <select value={year} onChange={e => handleYearChange(Number(e.target.value))} className="h-9 rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white">
               {years.map(y => <option key={y} value={y} className="text-slate-900">{y}</option>)}
             </select>
           </div>

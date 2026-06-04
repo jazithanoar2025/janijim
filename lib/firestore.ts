@@ -75,20 +75,25 @@ export async function getAllSabados(): Promise<Sabado[]> {
   })
 }
 
+export async function getSabado(id: string): Promise<Sabado | null> {
+  return cached(`sabados:${id}`, async () => {
+    const snap = await getDoc(doc(getDb(), 'sabados', id))
+    if (!snap.exists()) return null
+    return { id: snap.id, ...snap.data() } as Sabado
+  })
+}
+
 export async function getRegistrosBySabadoAndNinos(sabadoId: string, ninoIds: string[]): Promise<Registro[]> {
   if (ninoIds.length === 0) return []
-  const chunks = chunk(ninoIds, 30)
-  const registros: Registro[] = []
-  for (const ids of chunks) {
+  const snaps = await Promise.all(chunk(ninoIds, 30).map(ids => {
     const q = query(
       collection(getDb(), 'registros'),
       where('sabadoId', '==', sabadoId),
       where('ninoId', 'in', ids)
     )
-    const snap = await getDocs(q)
-    registros.push(...snap.docs.map(d => ({ id: d.id, ...d.data() }) as Registro))
-  }
-  return registros
+    return getDocs(q)
+  }))
+  return snaps.flatMap(snap => snap.docs.map(d => ({ id: d.id, ...d.data() }) as Registro))
 }
 
 export async function getRegistrosBySabado(sabadoId: string): Promise<Registro[]> {
@@ -99,6 +104,18 @@ export async function getRegistrosBySabado(sabadoId: string): Promise<Registro[]
   })
 }
 
+export async function getRegistrosBySabados(sabadoIds: string[]): Promise<Registro[]> {
+  if (sabadoIds.length === 0) return []
+  const key = `registros:sabados:${sabadoIds.slice().sort().join('|')}`
+  return cached(key, async () => {
+    const snaps = await Promise.all(chunk(sabadoIds, 30).map(ids => {
+      const q = query(collection(getDb(), 'registros'), where('sabadoId', 'in', ids))
+      return getDocs(q)
+    }))
+    return snaps.flatMap(snap => snap.docs.map(d => ({ id: d.id, ...d.data() }) as Registro))
+  })
+}
+
 export async function getRegistrosByNinos(ninoIds: string[]): Promise<Registro[]> {
   if (ninoIds.length === 0) return []
   const key = `registros:ninos:${ninoIds.slice().sort().join('|')}`
@@ -106,13 +123,11 @@ export async function getRegistrosByNinos(ninoIds: string[]): Promise<Registro[]
 }
 
 async function loadRegistrosByNinos(ninoIds: string[]): Promise<Registro[]> {
-  const registros: Registro[] = []
-  for (const ids of chunk(ninoIds, 30)) {
+  const snaps = await Promise.all(chunk(ninoIds, 30).map(ids => {
     const q = query(collection(getDb(), 'registros'), where('ninoId', 'in', ids))
-    const snap = await getDocs(q)
-    registros.push(...snap.docs.map(d => ({ id: d.id, ...d.data() }) as Registro))
-  }
-  return registros
+    return getDocs(q)
+  }))
+  return snaps.flatMap(snap => snap.docs.map(d => ({ id: d.id, ...d.data() }) as Registro))
 }
 
 export async function getAllRegistros(): Promise<Registro[]> {

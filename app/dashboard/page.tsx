@@ -5,7 +5,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { CalendarDays, Percent, Users, UsersRound } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { PageFade } from '@/components/ui/page-fade'
-import { getAllNinos, getAllRegistros, getAllSabados, getAppConfig, getGrupos } from '@/lib/firestore'
+import { getAllNinos, getAllSabados, getAppConfig, getGrupos, getRegistrosBySabados } from '@/lib/firestore'
 import {
   averageAttendanceCountPerSabado,
   averageJanijFidelity,
@@ -26,14 +26,17 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([getAllNinos(), getGrupos(), getAllSabados(), getAllRegistros(), getAppConfig()])
-      .then(([ninosData, gruposData, sabadosData, registrosData, config]) => {
+    Promise.all([getAllNinos(), getGrupos(), getAllSabados(), getAppConfig()])
+      .then(async ([ninosData, gruposData, sabadosData, config]) => {
+        if (cancelled) return
+        const activeYear = config.añoActivo
+        const registrosData = await getRegistrosBySabados(filterSabadosByYear(sabadosData, activeYear).map(s => s.id))
         if (cancelled) return
         setNinos(ninosData)
         setGrupos(gruposData)
         setSabados(sabadosData)
         setRegistros(registrosData)
-        setYear(config.añoActivo)
+        setYear(activeYear)
         setLoading(false)
       })
       .catch(err => {

@@ -1,4 +1,15 @@
 import type { Nino, Registro, Sabado } from './types'
+import { formatNinoEscuela, normalizeEscuelaText } from './escuelas'
+
+interface RegistroIndex {
+  vinoSabadosByNino: Map<string, Set<string>>
+  vinoNinosBySabado: Map<string, Set<string>>
+  pagoNinosBySabado: Map<string, Set<string>>
+  deudaSabadosByNino: Map<string, Set<string>>
+}
+
+const registroIndexCache = new WeakMap<Registro[], RegistroIndex>()
+const sabadoIdsCache = new WeakMap<Sabado[], Set<string>>()
 
 export function isActiveNino(nino: Nino): boolean {
   return nino.activo !== false
@@ -16,14 +27,22 @@ export function filterSabadosByYear(sabados: Sabado[], year: number): Sabado[] {
 
 export function attendanceRate(sabadoIds: Set<string>, registros: Registro[], totalNinos: number): number {
   if (sabadoIds.size === 0 || totalNinos === 0) return 0
-  const attended = new Set(registros.filter(r => r.vino && sabadoIds.has(r.sabadoId)).map(r => `${r.sabadoId}:${r.ninoId}`)).size
+  let attended = 0
+  for (const [sabadoId, ninos] of getRegistroIndex(registros).vinoNinosBySabado) {
+    if (sabadoIds.has(sabadoId)) attended += ninos.size
+  }
   return Math.round((attended / (sabadoIds.size * totalNinos)) * 100)
 }
 
 export function ninoAttendancePercent(ninoId: string, sabados: Sabado[], registros: Registro[]): number {
   if (sabados.length === 0) return 0
-  const sabadoIds = new Set(sabados.map(s => s.id))
-  const attended = new Set(registros.filter(r => r.ninoId === ninoId && r.vino && sabadoIds.has(r.sabadoId)).map(r => r.sabadoId)).size
+  const sabadoIds = getSabadoIds(sabados)
+  const attendedSabados = getRegistroIndex(registros).vinoSabadosByNino.get(ninoId)
+  if (!attendedSabados) return 0
+  let attended = 0
+  for (const sabadoId of attendedSabados) {
+    if (sabadoIds.has(sabadoId)) attended += 1
+  }
   return Math.round((attended / sabados.length) * 100)
 }
 
@@ -51,24 +70,22 @@ export function averageAttendanceCountPerSabado(sabados: Sabado[], ninoIds: Set<
 }
 
 export function countAttendanceForSabado(sabadoId: string, ninoIds: Set<string>, registros: Registro[]): number {
-  return new Set(registros.filter(r => r.sabadoId === sabadoId && r.vino && ninoIds.has(r.ninoId)).map(r => r.ninoId)).size
+  return countMatchingNinos(getRegistroIndex(registros).vinoNinosBySabado.get(sabadoId), ninoIds)
 }
 
 export function countPaidForSabado(sabadoId: string, ninoIds: Set<string>, registros: Registro[]): number {
-  return new Set(registros.filter(r => r.sabadoId === sabadoId && r.vino && r.pago && ninoIds.has(r.ninoId)).map(r => r.ninoId)).size
+  return countMatchingNinos(getRegistroIndex(registros).pagoNinosBySabado.get(sabadoId), ninoIds)
 }
 
 export function computeDebtRows(ninos: Nino[], sabados: Sabado[], registros: Registro[]) {
   const sabadoById = new Map(sabados.map(s => [s.id, s]))
+  const deudaByNino = getRegistroIndex(registros).deudaSabadosByNino
   return ninos
     .filter(isActiveNino)
     .map(nino => {
-      const sabadosDebe = registros
-        .filter(r => r.ninoId === nino.id && r.vino && !r.pago && sabadoById.has(r.sabadoId))
-        .reduce<Sabado[]>((items, r) => {
-          if (!items.some(sabado => sabado.id === r.sabadoId)) items.push(sabadoById.get(r.sabadoId)!)
-          return items
-        }, [])
+      const sabadosDebe = Array.from(deudaByNino.get(nino.id) ?? [])
+        .map(sabadoId => sabadoById.get(sabadoId))
+        .filter((sabado): sabado is Sabado => Boolean(sabado))
       const deuda = sabadosDebe.reduce((sum, sabado) => sum + (Number(sabado.monto) || 0), 0)
       return { nino, deuda, sabados: sabadosDebe }
     })
@@ -79,8 +96,8 @@ export function computeDebtRows(ninos: Nino[], sabados: Sabado[], registros: Reg
 export function groupBySchool(ninos: Nino[], sabados: Sabado[], registros: Registro[]) {
   const buckets = new Map<string, { label: string; ninos: Nino[] }>()
   for (const nino of ninos) {
-    const label = nino.escuela?.trim() || 'Sin escuela'
-    const key = normalizeSchoolName(label)
+    const label = formatNinoEscuela(nino)
+    const key = nino.escuelaId ? `id:${nino.escuelaId}` : `text:${normalizeEscuelaText(label)}`
     const bucket = buckets.get(key) ?? { label, ninos: [] }
     bucket.ninos.push(nino)
     buckets.set(key, bucket)
@@ -95,11 +112,48 @@ export function groupBySchool(ninos: Nino[], sabados: Sabado[], registros: Regis
     .sort((a, b) => b.janijim - a.janijim)
 }
 
-function normalizeSchoolName(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9]+/g, ' ')
-    .trim()
-    .toUpperCase()
+function getRegistroIndex(registros: Registro[]): RegistroIndex {
+  const cached = registroIndexCache.get(registros)
+  if (cached) return cached
+  const index: RegistroIndex = {
+    vinoSabadosByNino: new Map(),
+    vinoNinosBySabado: new Map(),
+    pagoNinosBySabado: new Map(),
+    deudaSabadosByNino: new Map(),
+  }
+  for (const registro of registros) {
+    if (!registro.vino) continue
+    addToSetMap(index.vinoSabadosByNino, registro.ninoId, registro.sabadoId)
+    addToSetMap(index.vinoNinosBySabado, registro.sabadoId, registro.ninoId)
+    if (registro.pago) {
+      addToSetMap(index.pagoNinosBySabado, registro.sabadoId, registro.ninoId)
+    } else {
+      addToSetMap(index.deudaSabadosByNino, registro.ninoId, registro.sabadoId)
+    }
+  }
+  registroIndexCache.set(registros, index)
+  return index
+}
+
+function getSabadoIds(sabados: Sabado[]): Set<string> {
+  const cached = sabadoIdsCache.get(sabados)
+  if (cached) return cached
+  const ids = new Set(sabados.map(sabado => sabado.id))
+  sabadoIdsCache.set(sabados, ids)
+  return ids
+}
+
+function addToSetMap(map: Map<string, Set<string>>, key: string, value: string) {
+  const set = map.get(key) ?? new Set<string>()
+  set.add(value)
+  map.set(key, set)
+}
+
+function countMatchingNinos(values: Set<string> | undefined, ninoIds: Set<string>): number {
+  if (!values || values.size === 0 || ninoIds.size === 0) return 0
+  let count = 0
+  for (const ninoId of values) {
+    if (ninoIds.has(ninoId)) count += 1
+  }
+  return count
 }

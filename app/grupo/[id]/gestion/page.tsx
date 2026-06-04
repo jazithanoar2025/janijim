@@ -13,7 +13,7 @@ import { SchoolCombobox } from '@/components/ui/school-combobox'
 import { useAuth } from '@/hooks/useAuth'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { addNino, deleteNino, getNinosByGrupo, updateNino } from '@/lib/firestore'
-import { findEscuelaById, findEscuelaByLabel, formatEscuela } from '@/lib/escuelas'
+import { findEscuelaByExactLabel, findEscuelaById, formatEscuela, formatNinoEscuela } from '@/lib/escuelas'
 import { isActiveNino } from '@/lib/metrics'
 import type { Nino } from '@/lib/types'
 
@@ -70,26 +70,32 @@ export default function GestionPage() {
     setSaving(true)
     setError('')
     try {
-      const selectedEscuela = findEscuelaByLabel(form.escuela)
+      const selectedEscuela = findEscuelaByExactLabel(form.escuela)
       const escuelaValue = selectedEscuela?.nombre ?? form.escuela.trim()
-      const data = {
+      const editableData = {
         nombre: form.nombre.trim(),
         apellido: form.apellido.trim(),
-        grupoId: id,
         escuela: escuelaValue,
         escuelaId: selectedEscuela?.id ?? '',
         telefono: form.telefono.trim(),
         observaciones: form.observaciones.trim(),
         activo: editing?.activo ?? true,
       }
-      if (editing) await updateNino(editing.id, data)
-      else await addNino({
-        ...data,
-        creadoEn: new Date().toISOString(),
-        creadoPor: getFirebaseAuth().currentUser?.email ?? '',
-        creadoPorRol: usuario?.rol ?? 'admin',
-      })
-      await load()
+      if (editing) {
+        await updateNino(editing.id, editableData)
+        setNinos(current => current
+          .map(nino => nino.id === editing.id ? { ...nino, ...editableData } : nino)
+          .sort((a, b) => a.apellido.localeCompare(b.apellido) || a.nombre.localeCompare(b.nombre)))
+      } else {
+        await addNino({
+          ...editableData,
+          grupoId: id,
+          creadoEn: new Date().toISOString(),
+          creadoPor: getFirebaseAuth().currentUser?.email ?? '',
+          creadoPorRol: usuario?.rol ?? 'admin',
+        })
+        await load()
+      }
       setOpen(false)
       setSaved(true)
       window.setTimeout(() => setSaved(false), 2000)
@@ -167,7 +173,7 @@ export default function GestionPage() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="font-semibold text-slate-900">{nino.apellido}, {nino.nombre}</p>
-                    <p className="text-xs text-slate-500">{isActiveNino(nino) ? 'En lista' : 'Oculto'}{nino.escuela ? ` · ${nino.escuela}` : ''}</p>
+                    <p className="text-xs text-slate-500">{isActiveNino(nino) ? 'En lista' : 'Oculto'} · {formatNinoEscuela(nino)}</p>
                   </div>
                   <div className="flex gap-1">
                     <Button size="sm" variant="outline" onClick={() => toggleActivo(nino)} className="transition-colors duration-150">{isActiveNino(nino) ? 'Ocultar' : 'Mostrar'}</Button>

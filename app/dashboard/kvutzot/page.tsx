@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight, Phone } from 'lucide-react'
 import { PageFade } from '@/components/ui/page-fade'
-import { getAllNinos, getGrupos, getUsuarios } from '@/lib/firestore'
+import { formatNinoEscuela } from '@/lib/escuelas'
+import { getAllNinos, getGrupos } from '@/lib/firestore'
 import { isNuevoNino } from '@/lib/metrics'
 import type { Grupo, Nino } from '@/lib/types'
 
@@ -16,13 +17,11 @@ interface Row {
 export default function KvutzotPage() {
   const [loading, setLoading] = useState(true)
   const [rows, setRows] = useState<Row[]>([])
-  const [responsableEmails, setResponsableEmails] = useState(new Set<string>())
   const [error, setError] = useState('')
 
   useEffect(() => {
-    Promise.all([getGrupos(), getAllNinos(), getUsuarios()])
-      .then(([grupos, ninos, usuarios]) => {
-        setResponsableEmails(new Set(usuarios.filter(u => u.rol === 'admin').map(u => u.email.trim().toLowerCase())))
+    Promise.all([getGrupos(), getAllNinos()])
+      .then(([grupos, ninos]) => {
         setRows(grupos
           .slice()
           .sort((a, b) => a.nombre.localeCompare(b.nombre))
@@ -72,12 +71,12 @@ export default function KvutzotPage() {
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className="font-medium text-slate-900">{nino.apellido}, {nino.nombre}</p>
-                          <p className="text-xs text-slate-500">{nino.escuela || 'Sin escuela'}</p>
+                          <p className="text-xs text-slate-500">{formatNinoEscuela(nino)}</p>
                         </div>
                         <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${nino.activo === false ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-700'}`}>
                           {nino.activo === false ? 'Oculto' : 'Operativo'}
                         </span>
-                        {isNuevoNino(nino, responsableEmails) && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">Nuevo</span>}
+                        {isNuevoNino(nino) && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">Nuevo</span>}
                       </div>
                       {nino.telefono && <p className="mt-2 inline-flex items-center gap-1 text-xs text-slate-500"><Phone size={12} />{nino.telefono}</p>}
                     </div>

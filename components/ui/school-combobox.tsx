@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { Input } from '@/components/ui/input'
-import { escuelasUruguay, formatEscuela, normalizeEscuelaText } from '@/lib/escuelas'
+import { escuelasSearchItems, normalizeEscuelaText } from '@/lib/escuelas'
 
 interface SchoolComboboxProps {
   value: string
@@ -14,9 +14,10 @@ export function SchoolCombobox({ value, onChange }: SchoolComboboxProps) {
   const query = normalizeEscuelaText(value)
 
   const options = useMemo(() => {
-    if (!query) return escuelasUruguay.slice(0, 20)
-    return escuelasUruguay
-      .filter(escuela => normalizeEscuelaText(formatEscuela(escuela)).includes(query))
+    if (!query) return escuelasSearchItems.slice(0, 20)
+    const tokens = query.split(' ').filter(Boolean)
+    return escuelasSearchItems
+      .filter(item => tokens.every(token => item.normalizedLabel.includes(token) || item.normalizedCodigo.includes(token)))
       .slice(0, 25)
   }, [query])
 
@@ -32,8 +33,7 @@ export function SchoolCombobox({ value, onChange }: SchoolComboboxProps) {
       />
       {focused && options.length > 0 && (
         <div className="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-[70] max-h-52 overflow-y-auto rounded-lg border bg-white shadow-lg">
-          {options.map(escuela => {
-            const label = formatEscuela(escuela)
+          {options.map(({ escuela, label }) => {
             return (
               <button
                 key={escuela.id}

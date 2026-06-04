@@ -101,9 +101,9 @@ service cloud.firestore {
     }
 
     function validNinoUpdate() {
-      return validNino(request.resource.data) &&
-        request.resource.data.grupoId == resource.data.grupoId &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      return request.resource.data.grupoId == resource.data.grupoId &&
+        affected.hasOnly([
           'nombre',
           'apellido',
           'escuela',
@@ -111,7 +111,14 @@ service cloud.firestore {
           'telefono',
           'observaciones',
           'activo',
-        ]);
+        ]) &&
+        (!affected.hasAny(['nombre']) || isNonEmptyString(request.resource.data.nombre, 80)) &&
+        (!affected.hasAny(['apellido']) || isNonEmptyString(request.resource.data.apellido, 80)) &&
+        (!affected.hasAny(['escuela']) || isOptionalString(request.resource.data, 'escuela', 120)) &&
+        (!affected.hasAny(['escuelaId']) || isOptionalString(request.resource.data, 'escuelaId', 180)) &&
+        (!affected.hasAny(['telefono']) || isOptionalString(request.resource.data, 'telefono', 40)) &&
+        (!affected.hasAny(['observaciones']) || isOptionalString(request.resource.data, 'observaciones', 500)) &&
+        (!affected.hasAny(['activo']) || request.resource.data.activo is bool);
     }
 
     function validSabado(data) {

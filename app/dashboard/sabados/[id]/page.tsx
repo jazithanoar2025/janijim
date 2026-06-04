@@ -6,7 +6,8 @@ import { useParams } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { PageFade } from '@/components/ui/page-fade'
-import { getAllNinos, getAllSabados, getGrupos, getRegistrosBySabado } from '@/lib/firestore'
+import { formatNinoEscuela } from '@/lib/escuelas'
+import { getAllNinos, getGrupos, getRegistrosBySabado, getSabado } from '@/lib/firestore'
 import { countAttendanceForSabado, countPaidForSabado, isActiveNino } from '@/lib/metrics'
 import type { Grupo, Nino, Registro, Sabado } from '@/lib/types'
 
@@ -20,9 +21,9 @@ export default function SabadoDetailPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    Promise.all([getAllSabados(), getGrupos(), getAllNinos(), getRegistrosBySabado(id)])
-      .then(([sabados, gruposData, ninosData, registrosData]) => {
-        setSabado(sabados.find(s => s.id === id) ?? null)
+    Promise.all([getSabado(id), getGrupos(), getAllNinos(), getRegistrosBySabado(id)])
+      .then(([sabadoData, gruposData, ninosData, registrosData]) => {
+        setSabado(sabadoData)
         setGrupos(gruposData)
         setNinos(ninosData.filter(isActiveNino))
         setRegistros(registrosData)
@@ -77,7 +78,7 @@ export default function SabadoDetailPage() {
                       return (
                         <div key={nino.id} className="rounded-xl border p-3">
                           <p className="font-medium text-slate-900">{nino.apellido}, {nino.nombre}</p>
-                          <p className="text-xs text-slate-500">{nino.escuela || 'Sin escuela'}</p>
+                          <p className="text-xs text-slate-500">{formatNinoEscuela(nino)}</p>
                           <div className="mt-2 flex gap-2">
                             <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${registro?.vino ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{registro?.vino ? 'Vino' : 'No vino'}</span>
                             <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${registro?.pago ? 'bg-blue-50 text-blue-700' : registro?.vino ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-500'}`}>{registro?.pago ? 'Pagó' : registro?.vino ? 'Debe' : 'Sin pago'}</span>

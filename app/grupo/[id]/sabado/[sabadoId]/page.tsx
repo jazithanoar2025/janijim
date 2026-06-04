@@ -9,8 +9,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { PageFade } from '@/components/ui/page-fade'
 import { getFirebaseAuth } from '@/lib/firebase'
-import { batchSaveRegistros, getAllSabados, getNinosByGrupo, getRegistrosBySabadoAndNinos } from '@/lib/firestore'
-import { normalizeEscuelaText } from '@/lib/escuelas'
+import { batchSaveRegistros, getNinosByGrupo, getRegistrosBySabadoAndNinos, getSabado } from '@/lib/firestore'
+import { formatNinoEscuela, normalizeEscuelaText } from '@/lib/escuelas'
 import { isActiveNino } from '@/lib/metrics'
 import type { Nino, Registro, Sabado } from '@/lib/types'
 
@@ -30,10 +30,9 @@ export default function SabadoPage() {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    Promise.all([getAllSabados(), getNinosByGrupo(grupoId)])
-      .then(async ([sabados, ninosData]) => {
+    Promise.all([getSabado(sabadoId), getNinosByGrupo(grupoId)])
+      .then(async ([selected, ninosData]) => {
         if (cancelled) return
-        const selected = sabados.find(s => s.id === sabadoId) ?? null
         const activos = ninosData.filter(isActiveNino).sort((a, b) => a.apellido.localeCompare(b.apellido))
         const registros = await getRegistrosBySabadoAndNinos(sabadoId, activos.map(n => n.id))
         if (cancelled) return
@@ -63,7 +62,7 @@ export default function SabadoPage() {
   const filteredNinos = useMemo(() => {
     const normalized = normalizeEscuelaText(query)
     if (!normalized) return ninos
-    return ninos.filter(nino => normalizeEscuelaText(`${nino.nombre} ${nino.apellido} ${nino.escuela ?? ''}`).includes(normalized))
+    return ninos.filter(nino => normalizeEscuelaText(`${nino.nombre} ${nino.apellido} ${formatNinoEscuela(nino)}`).includes(normalized))
   }, [ninos, query])
 
   function updateRow(ninoId: string, patch: Partial<{ vino: boolean; pago: boolean }>) {
@@ -146,7 +145,7 @@ export default function SabadoPage() {
             >
               <div>
                 <p className="font-medium text-slate-900">{nino.apellido}, {nino.nombre}</p>
-                {nino.escuela && <p className="text-xs text-slate-400">{nino.escuela}</p>}
+                <p className="text-xs text-slate-400">{formatNinoEscuela(nino)}</p>
               </div>
               <input
                 type="checkbox"

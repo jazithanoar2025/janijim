@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, UsersRound } from 'lucide-react'
 import { PageFade } from '@/components/ui/page-fade'
-import { getAllNinos, getAllRegistros, getAllSabados, getAppConfig, getGrupos } from '@/lib/firestore'
+import { getAllNinos, getAllSabados, getAppConfig, getGrupos, getRegistrosBySabados } from '@/lib/firestore'
 import { computeDebtRows, filterSabadosByYear, getYears } from '@/lib/metrics'
 import type { Grupo, Nino, Registro, Sabado } from '@/lib/types'
 
@@ -18,13 +18,15 @@ export default function DeudoresPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    Promise.all([getAllSabados(), getAllNinos(), getAllRegistros(), getGrupos(), getAppConfig()])
-      .then(([sabadosData, ninosData, registrosData, gruposData, config]) => {
+    Promise.all([getAllSabados(), getAllNinos(), getGrupos(), getAppConfig()])
+      .then(async ([sabadosData, ninosData, gruposData, config]) => {
+        const activeYear = config.añoActivo
+        const registrosData = await getRegistrosBySabados(filterSabadosByYear(sabadosData, activeYear).map(s => s.id))
         setSabados(sabadosData)
         setNinos(ninosData)
         setRegistros(registrosData)
         setGrupos(gruposData)
-        setYear(config.añoActivo)
+        setYear(activeYear)
       })
       .catch(err => {
         console.error('Failed to load debtors:', err)
@@ -32,6 +34,16 @@ export default function DeudoresPage() {
       })
       .finally(() => setLoading(false))
   }, [])
+
+  async function handleYearChange(nextYear: number) {
+    setYear(nextYear)
+    try {
+      setRegistros(await getRegistrosBySabados(filterSabadosByYear(sabados, nextYear).map(s => s.id)))
+    } catch (err) {
+      console.error('Failed to load debtor year:', err)
+      setError('No se pudieron cargar los deudores de ese año.')
+    }
+  }
 
   const years = useMemo(() => getYears(sabados, year), [sabados, year])
   const grupoMap = useMemo(() => new Map(grupos.map(g => [g.id, g.nombre])), [grupos])
@@ -71,7 +83,7 @@ export default function DeudoresPage() {
                 <option value="todos">Todas las kvutzot</option>
                 {grupos.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
               </select>
-              <select value={year} onChange={e => setYear(Number(e.target.value))} className="h-9 rounded-lg border bg-white px-3 text-sm">
+              <select value={year} onChange={e => handleYearChange(Number(e.target.value))} className="h-9 rounded-lg border bg-white px-3 text-sm">
                 {years.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>

@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { PageFade } from '@/components/ui/page-fade'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { getAllNinos, getAllRegistros, getAllSabados, getAppConfig, getGrupos, getUsuarios } from '@/lib/firestore'
+import { formatNinoEscuela } from '@/lib/escuelas'
+import { getAllNinos, getAllSabados, getAppConfig, getGrupos, getRegistrosBySabados } from '@/lib/firestore'
 import { filterSabadosByYear, isInactiveByAttendance, isNuevoNino, ninoAttendancePercent } from '@/lib/metrics'
 import type { Nino, Registro, Sabado } from '@/lib/types'
 
@@ -27,18 +28,18 @@ export default function JanijimPage() {
   const [sabados, setSabados] = useState<Sabado[]>([])
   const [registros, setRegistros] = useState<Registro[]>([])
   const [grupoMap, setGrupoMap] = useState(new Map<string, string>())
-  const [responsableEmails, setResponsableEmails] = useState(new Set<string>())
   const [error, setError] = useState('')
 
   useEffect(() => {
-    Promise.all([getAllNinos(), getGrupos(), getAllSabados(), getAllRegistros(), getAppConfig(), getUsuarios()])
-      .then(([ninosData, grupos, sabadosData, registrosData, config, usuarios]) => {
+    Promise.all([getAllNinos(), getGrupos(), getAllSabados(), getAppConfig()])
+      .then(async ([ninosData, grupos, sabadosData, config]) => {
+        const activeYear = config.añoActivo
+        const registrosData = await getRegistrosBySabados(filterSabadosByYear(sabadosData, activeYear).map(s => s.id))
         setNinos(ninosData)
         setSabados(sabadosData)
         setRegistros(registrosData)
         setGrupoMap(new Map(grupos.map(g => [g.id, g.nombre])))
-        setResponsableEmails(new Set(usuarios.filter(u => u.rol === 'admin').map(u => u.email.trim().toLowerCase())))
-        setYear(config.añoActivo)
+        setYear(activeYear)
       })
       .catch(err => {
         console.error('Failed to load janijim:', err)
@@ -46,6 +47,16 @@ export default function JanijimPage() {
       })
       .finally(() => setLoading(false))
   }, [])
+
+  async function handleYearChange(nextYear: number) {
+    setYear(nextYear)
+    try {
+      setRegistros(await getRegistrosBySabados(filterSabadosByYear(sabados, nextYear).map(s => s.id)))
+    } catch (err) {
+      console.error('Failed to load janijim year:', err)
+      setError('No se pudieron cargar los registros de ese año.')
+    }
+  }
 
   const sabadosYear = useMemo(() => filterSabadosByYear(sabados, year), [sabados, year])
   const rows = useMemo<Row[]>(() => ninos.map(nino => ({
@@ -56,10 +67,10 @@ export default function JanijimPage() {
 
   const filtered = useMemo(() => rows
     .filter(row => {
-      const text = `${row.nombre} ${row.apellido} ${row.grupoNombre} ${row.escuela ?? ''}`.toLowerCase()
+      const text = `${row.nombre} ${row.apellido} ${row.grupoNombre} ${formatNinoEscuela(row)}`.toLowerCase()
       return text.includes(query.toLowerCase()) &&
         (!onlyActive || onlyNew || row.asistencia > 0) &&
-        (!onlyNew || isNuevoNino(row, responsableEmails)) &&
+        (!onlyNew || isNuevoNino(row)) &&
         (grupoId === 'todos' || row.grupoId === grupoId)
     })
     .sort((a, b) => {
@@ -67,7 +78,7 @@ export default function JanijimPage() {
       if (sortMode === 'asistencia-asc') return a.asistencia - b.asistencia || a.apellido.localeCompare(b.apellido)
       if (sortMode === 'grupo') return a.grupoNombre.localeCompare(b.grupoNombre) || b.asistencia - a.asistencia
       return a.apellido.localeCompare(b.apellido) || a.nombre.localeCompare(b.nombre)
-    }), [rows, query, onlyActive, onlyNew, grupoId, sortMode, responsableEmails])
+    }), [rows, query, onlyActive, onlyNew, grupoId, sortMode])
 
   if (loading) return <PageFade>{[0, 1, 2, 3].map(i => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse mb-2" />)}</PageFade>
 
@@ -87,7 +98,7 @@ export default function JanijimPage() {
             <option value="grupo">Por kvutza</option>
             <option value="apellido">Por apellido</option>
           </select>
-          <select value={year} onChange={e => setYear(Number(e.target.value))} className="h-8 rounded-lg border bg-white px-2 text-sm">
+          <select value={year} onChange={e => handleYearChange(Number(e.target.value))} className="h-8 rounded-lg border bg-white px-2 text-sm">
             {Array.from(new Set(sabados.map(s => Number(s.fecha.slice(0, 4))).filter(Number.isFinite))).sort((a, b) => b - a).map(y => <option key={y} value={y}>{y}</option>)}
           </select>
           <select value={grupoId} onChange={e => setGrupoId(e.target.value)} className="h-8 rounded-lg border bg-white px-2 text-sm">
@@ -110,7 +121,7 @@ export default function JanijimPage() {
               <TableRow key={row.id} className="transition-colors duration-100 hover:bg-slate-50">
                 <TableCell>{row.apellido}, {row.nombre}</TableCell>
                 <TableCell>{row.grupoNombre}</TableCell>
-                <TableCell>{row.escuela ?? '-'}</TableCell>
+                <TableCell>{formatNinoEscuela(row)}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <div className="h-2 w-20 overflow-hidden rounded-full bg-slate-100">
@@ -123,7 +134,7 @@ export default function JanijimPage() {
                   <div className="flex flex-wrap gap-1">
                     <span>{isInactiveByAttendance(row, sabadosYear, registros) ? 'Inactivo' : 'Activo'}</span>
                     {row.activo === false && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">Oculto</span>}
-                    {isNuevoNino(row, responsableEmails) && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">Nuevo</span>}
+                    {isNuevoNino(row) && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">Nuevo</span>}
                   </div>
                 </TableCell>
               </TableRow>
