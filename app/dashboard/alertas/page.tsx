@@ -20,6 +20,7 @@ export default function AlertasGeneralesPage() {
   const [grupos, setGrupos] = useState<Grupo[]>([])
   const [grupoId, setGrupoId] = useState('todos')
   const [onlyNew, setOnlyNew] = useState(false)
+  const [umbral, setUmbral] = useState(0)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -28,6 +29,7 @@ export default function AlertasGeneralesPage() {
         const registros = await getRegistrosBySabados(filterSabadosByYear(sabados, config.añoActivo).map(s => s.id))
         const grupoMap = new Map(gruposData.map(g => [g.id, g.nombre]))
         setGrupos(gruposData)
+        setUmbral(config.umbralFidelidadAlerta)
         setAlerts(computeAlerts(sabados, ninos, registros, config.umbralFidelidadAlerta, config.añoActivo)
           .map(alert => ({ ...alert, grupoNombre: grupoMap.get(alert.nino.grupoId) ?? alert.nino.grupoId })))
       })
@@ -54,7 +56,8 @@ export default function AlertasGeneralesPage() {
             <Bell className="text-emerald-300" />
             <div>
               <p className="text-sm text-emerald-200">Alertas generales</p>
-              <h2 className="text-2xl font-bold">Faltas consecutivas</h2>
+              <h2 className="text-2xl font-bold">Baja fidelidad</h2>
+              <p className="text-sm text-slate-300">Umbral actual: {umbral}%</p>
             </div>
           </div>
         </div>
@@ -69,23 +72,26 @@ export default function AlertasGeneralesPage() {
           </label>
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
-        {filtered.length === 0 && <div className="rounded-xl border bg-white p-4 text-sm text-slate-500">No hay alertas con esos filtros.</div>}
+        {filtered.length === 0 && <div className="rounded-xl border bg-white p-4 text-sm text-slate-500">Todos los janijim superan el umbral de fidelidad con esos filtros.</div>}
         <div className="grid gap-3 md:grid-cols-2">
-          {filtered.map(({ nino, fidelidad, faltasConsecutivas, ultimaAsistencia, severity, grupoNombre }) => (
+          {filtered.map(({ nino, fidelidad, asistencias, faltasConsecutivas, ultimaAsistencia, severity, grupoNombre }) => (
             <div key={nino.id} className="rounded-2xl border bg-white p-4 shadow-sm transition-colors duration-100 hover:bg-slate-50">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold text-slate-950">{nino.nombre} {nino.apellido}</p>
                   <p className="mt-1 flex items-center gap-1 text-sm text-slate-500"><UsersRound size={14} /> {grupoNombre} · {formatNinoEscuela(nino)}</p>
-                  {ultimaAsistencia && <p className="mt-1 text-xs text-slate-500">Última asistencia: {new Date(`${ultimaAsistencia}T00:00:00`).toLocaleDateString('es-UY')}</p>}
+                  <p className="mt-1 text-xs text-slate-500">
+                    {asistencias} asistencias · {faltasConsecutivas} faltas seguidas
+                    {ultimaAsistencia ? ` · Última: ${new Date(`${ultimaAsistencia}T00:00:00`).toLocaleDateString('es-UY')}` : ' · Sin asistencias'}
+                  </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {isNuevoNino(nino) && <Badge className="bg-blue-500">Nuevo</Badge>}
                     {nino.activo === false && <Badge className="bg-zinc-500">Oculto</Badge>}
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-slate-950">{faltasConsecutivas}</p>
-                  <p className="text-xs text-slate-500">{fidelidad}% fidelidad</p>
+                  <p className="text-2xl font-bold text-slate-950">{fidelidad}%</p>
+                  <p className="text-xs text-slate-500">fidelidad</p>
                   <Badge className={severity === 'critical' ? 'bg-red-500' : 'bg-yellow-500'}>
                     {severity === 'critical' ? 'Crítica' : 'Atención'}
                   </Badge>

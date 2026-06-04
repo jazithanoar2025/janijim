@@ -3,6 +3,7 @@ import type { Nino, Sabado, Registro } from './types'
 export interface Alerta {
   nino: Nino
   fidelidad: number
+  asistencias: number
   faltasConsecutivas: number
   ultimaAsistencia?: string
   severity: 'warning' | 'critical'
@@ -12,7 +13,7 @@ export function computeAlerts(
   sabados: Sabado[],
   ninos: Nino[],
   registros: Registro[],
-  _umbral: number,
+  umbral: number,
   año: number
 ): Alerta[] {
   const sabadosAnio = sabados
@@ -32,26 +33,27 @@ export function computeAlerts(
 
   const alerts: Alerta[] = []
   for (const nino of ninos) {
+    if (nino.activo === false) continue
     const vinoIds = vinoByNino.get(nino.id) ?? new Set<string>()
     const asistencias = vinoIds.size
-    if (asistencias === 0) continue
 
     const fidelidad = Math.round((asistencias / sabadosAnio.length) * 100)
     const lastAttendedIndex = findLastIndex(sabadosAnio, sabado => vinoIds.has(sabado.id))
-    const faltasConsecutivas = sabadosAnio.length - lastAttendedIndex - 1
+    const faltasConsecutivas = lastAttendedIndex === -1 ? sabadosAnio.length : sabadosAnio.length - lastAttendedIndex - 1
 
-    if (faltasConsecutivas > 0) {
+    if (fidelidad < umbral) {
       alerts.push({
         nino,
         fidelidad,
+        asistencias,
         faltasConsecutivas,
         ultimaAsistencia: sabadosAnio[lastAttendedIndex]?.fecha,
-        severity: faltasConsecutivas >= 3 ? 'critical' : 'warning',
+        severity: fidelidad < umbral / 2 ? 'critical' : 'warning',
       })
     }
   }
 
-  return alerts.sort((a, b) => b.faltasConsecutivas - a.faltasConsecutivas || a.fidelidad - b.fidelidad)
+  return alerts.sort((a, b) => a.fidelidad - b.fidelidad || b.faltasConsecutivas - a.faltasConsecutivas)
 }
 
 function findLastIndex<T>(items: T[], predicate: (item: T) => boolean): number {
